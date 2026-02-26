@@ -8,3 +8,8 @@ spring:
 qdrant:
   host: qdrant
   port: 6333
+
+# RocketMQ（Docker 中默认启用，name-server 为 compose 中的 rocketmq 服务）
+rocketmq:
+  enabled: ${ROCKETMQ_ENABLED:true}
+  name-server: ${ROCKETMQ_NAME_SERVER:rocketmq:9876}

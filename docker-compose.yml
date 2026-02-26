@@ -5,7 +5,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root}
       MYSQL_DATABASE: ai_novel
-      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_USER: ${MYSQL_USER:-novel}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
     ports:
       - "3306:3306"
@@ -31,6 +31,26 @@ services:
       timeout: 5s
       retries: 5
 
+  rocketmq:
+    image: apache/rocketmq:5.3.2
+    container_name: ai-novel-rocketmq
+    ports:
+      - "9876:9876"
+    command: sh mqnamesrv
+
+  rocketmq-broker:
+    image: apache/rocketmq:5.3.2
+    container_name: ai-novel-rocketmq-broker
+    ports:
+      - "10909:10909"
+      - "10911:10911"
+      - "10912:10912"
+    environment:
+      NAMESRV_ADDR: rocketmq:9876
+    depends_on:
+      - rocketmq
+    command: sh mqbroker
+
   backend:
     build:
       context: .
@@ -38,14 +58,20 @@ services:
     container_name: ai-novel-backend
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_USER: ${MYSQL_USER:-novel}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-your-api-key}
+      ROCKETMQ_ENABLED: ${ROCKETMQ_ENABLED:-true}
+      ROCKETMQ_NAME_SERVER: rocketmq:9876
     depends_on:
       mysql:
         condition: service_healthy
       qdrant:
         condition: service_healthy
+      rocketmq:
+        condition: service_started
+      rocketmq-broker:
+        condition: service_started
     ports:
       - "8080:8080"
 
