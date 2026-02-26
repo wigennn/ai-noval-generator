@@ -153,6 +153,3 @@ docker compose down
 - **后端**：`mvn spring-boot:run`（开发）、`mvn clean package`（打包）
 - **前端**：`npm run dev`（开发）、`npm run build`（构建）、`npm run preview`（预览构建结果）
 
-## 许可证
-
-请根据项目实际情况添加许可证信息。
