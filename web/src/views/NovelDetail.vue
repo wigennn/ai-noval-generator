@@ -67,7 +67,24 @@
 
       <!-- 导出 Tab -->
       <section v-show="activeTab === 'export'" class="content-panel card">
-        <p class="hint">导出功能（待实现）</p>
+        <h2 class="section-title">导出章节</h2>
+        <p class="export-desc">将当前小说的全部章节导出为文件，支持以下格式：</p>
+        <div class="export-buttons">
+          <button type="button" class="btn-export" :disabled="exporting || !chapters.length" @click="doExport('txt')">
+            <span class="btn-export-icon">📄</span>
+            导出为 TXT
+          </button>
+          <button type="button" class="btn-export" :disabled="exporting || !chapters.length" @click="doExport('md')">
+            <span class="btn-export-icon">📝</span>
+            导出为 Markdown
+          </button>
+          <button type="button" class="btn-export" :disabled="exporting || !chapters.length" @click="doExport('docx')">
+            <span class="btn-export-icon">📘</span>
+            导出为 Word
+          </button>
+        </div>
+        <p v-if="!chapters.length" class="hint">暂无章节，请先在「章节写作」中生成章节后再导出。</p>
+        <p v-else class="hint">共 {{ chapters.length }} 章，导出后将包含所有章节标题与正文。</p>
       </section>
     </template>
   </div>
@@ -85,6 +102,7 @@ const novel = ref(null)
 const loading = ref(false)
 const chapters = ref([])
 const activeTab = ref('structure')
+const exporting = ref(false)
 
 const projectMeta = computed(() => {
   if (!novel.value?.id) return { estimatedChapters: 100, wordsPerChapter: 3000 }
@@ -122,6 +140,22 @@ function chapterStatusText(s) {
 function startGenerateStructure() {
   // 后端已有异步生成结构逻辑，这里仅提示或轮询
   // 实际可调用接口或轮询 novel 的 structure 字段
+}
+
+function doExport(format) {
+  if (!id.value || exporting.value) return
+  exporting.value = true
+  novels.exportNovel(id.value, format)
+    .then(({ blob, filename }) => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    })
+    .catch(() => {})
+    .finally(() => { exporting.value = false })
 }
 </script>
 
@@ -270,6 +304,41 @@ function startGenerateStructure() {
 .chapter-item .status {
   font-size: 12px;
   color: var(--text-secondary);
+}
+.export-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+.export-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.btn-export:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+.btn-export:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-export-icon {
+  font-size: 18px;
 }
 .loading {
   color: var(--text-secondary);

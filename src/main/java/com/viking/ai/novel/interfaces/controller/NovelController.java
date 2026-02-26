@@ -1,5 +1,6 @@
 package com.viking.ai.novel.interfaces.controller;
 
+import com.viking.ai.novel.application.service.NovelExportService;
 import com.viking.ai.novel.application.service.NovelService;
 import com.viking.ai.novel.domain.model.Novel;
 import com.viking.ai.novel.interfaces.dto.CreateNovelRequest;
@@ -8,10 +9,14 @@ import com.viking.ai.novel.interfaces.mapper.NovelMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,6 +27,7 @@ import java.util.stream.Collectors;
 public class NovelController {
     
     private final NovelService novelService;
+    private final NovelExportService novelExportService;
     private final NovelMapper novelMapper = NovelMapper.INSTANCE;
     
     /**
@@ -52,7 +58,28 @@ public class NovelController {
                 .map(novel -> ResponseEntity.ok(novelMapper.toDTO(novel)))
                 .orElse(ResponseEntity.notFound().build());
     }
-    
+
+    /**
+     * 导出小说章节（TXT / Markdown / Word）
+     */
+    @GetMapping("/{id}/export")
+    public ResponseEntity<org.springframework.core.io.Resource> export(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "txt") String format) {
+        try {
+            NovelExportService.ExportFormat fmt = NovelExportService.ExportFormat.from(format);
+            NovelExportService.ExportResult result = novelExportService.export(id, fmt);
+            String encodedFilename = URLEncoder.encode(result.filename(), StandardCharsets.UTF_8).replace("+", "%20");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(result.contentType()));
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFilename);
+            return ResponseEntity.ok().headers(headers).body(result.resource());
+        } catch (RuntimeException e) {
+            log.error("Export failed for novel {}", id, e);
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     /**
      * 获取用户的所有小说
      */
