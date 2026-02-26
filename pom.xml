@@ -124,6 +124,13 @@
             <version>5.2.5</version>
         </dependency>
 
+        <!-- RocketMQ for async AI generation -->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-spring-boot-starter</artifactId>
+            <version>2.3.0</version>
+        </dependency>
+
         <!-- Test Dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -7,8 +7,9 @@ import com.viking.ai.novel.domain.repository.ChapterRepository;
 import com.viking.ai.novel.domain.repository.NovelRepository;
 import com.viking.ai.novel.domain.repository.TaskRepository;
 import com.viking.ai.novel.infrastructure.ai.QdrantService;
-import lombok.RequiredArgsConstructor;
+import com.viking.ai.novel.infrastructure.mq.AiGenerateProducer;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,53 +20,66 @@ import java.util.Optional;
  * 章节应用服务
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ChapterService {
-    
+
     private final ChapterRepository chapterRepository;
     private final NovelRepository novelRepository;
     private final TaskRepository taskRepository;
     private final ChapterGenerationTaskService chapterGenerationTaskService;
     private final QdrantService qdrantService;
-    
+    private final AiGenerateProducer aiGenerateProducer;
+
+    public ChapterService(ChapterRepository chapterRepository,
+                          NovelRepository novelRepository,
+                          TaskRepository taskRepository,
+                          ChapterGenerationTaskService chapterGenerationTaskService,
+                          QdrantService qdrantService,
+                          @Autowired(required = false) AiGenerateProducer aiGenerateProducer) {
+        this.chapterRepository = chapterRepository;
+        this.novelRepository = novelRepository;
+        this.taskRepository = taskRepository;
+        this.chapterGenerationTaskService = chapterGenerationTaskService;
+        this.qdrantService = qdrantService;
+        this.aiGenerateProducer = aiGenerateProducer;
+    }
+
     /**
      * 生成章节
+     * @param async true=通过 MQ 异步生成，false=同步生成（阻塞至完成）
      */
     @Transactional
-    public Chapter generateChapter(Long novelId, Integer chapterNumber, String chapterTitle, String chapterAbstract) {
+    public Chapter generateChapter(Long novelId, Integer chapterNumber, String chapterTitle, String chapterAbstract, boolean async) {
         Novel novel = novelRepository.findById(novelId)
                 .orElseThrow(() -> new RuntimeException("Novel not found: " + novelId));
-        
-        // 检查章节是否已存在
+
         Optional<Chapter> existingChapter = chapterRepository.findByNovelIdAndChapterNumber(novelId, chapterNumber);
         if (existingChapter.isPresent()) {
             throw new RuntimeException("Chapter already exists: " + chapterNumber);
         }
-        
-        // 创建章节实体
+
         Chapter chapter = Chapter.builder()
                 .novelId(novelId)
                 .chapterNumber(chapterNumber)
                 .title(chapterTitle)
                 .abstractContent(chapterAbstract)
-                .status(0) // 待处理
+                .status(0)
                 .build();
-        
         chapter = chapterRepository.save(chapter);
-        
-        // 创建异步任务生成章节内容
+
         Task task = Task.builder()
                 .taskName("生成章节内容")
                 .taskType("GENERATE_CHAPTER")
                 .taskRelationId(chapter.getId())
-                .taskStatus(0) // 待处理
+                .taskStatus(0)
                 .build();
         taskRepository.save(task);
-        
-        // 异步生成章节内容
-        chapterGenerationTaskService.generateChapterContentAsync(novel.getId(), chapter.getId(), task.getId());
-        
+
+        if (async && aiGenerateProducer != null) {
+            aiGenerateProducer.sendChapterContent(novel.getId(), chapter.getId(), task.getId());
+        } else {
+            chapterGenerationTaskService.doGenerateChapterContent(novel.getId(), chapter.getId(), task.getId());
+        }
         return chapter;
     }
     

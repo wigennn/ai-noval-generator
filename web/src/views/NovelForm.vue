@@ -31,6 +31,19 @@
           <p v-if="!libraryList.length" class="hint">暂无资料库，请先在<a href="#" @click.prevent="goLibrary">资料库</a>页面上传。</p>
         </div>
       </div>
+      <div v-if="!isEdit" class="field">
+        <label class="label">生成方式</label>
+        <div class="generate-mode">
+          <label class="radio-label">
+            <input v-model="form.async" type="radio" :value="true" />
+            <span>异步生成</span>
+          </label>
+          <label class="radio-label">
+            <input v-model="form.async" type="radio" :value="false" />
+            <span>实时生成</span>
+          </label>
+        </div>
+      </div>
 
       <div class="actions">
         <button type="submit" class="primary" :disabled="saving">
@@ -54,7 +67,7 @@ const route = useRoute()
 const router = useRouter()
 
 const isEdit = computed(() => !!route.params.id)
-const form = ref({ title: '', genre: '', settingText: '' })
+const form = ref({ title: '', genre: '', settingText: '', async: true })
 const saving = ref(false)
 const libraryList = ref([])
 const libraryLoading = ref(false)
@@ -67,7 +80,8 @@ function loadNovel() {
     form.value = {
       title: data.title,
       genre: data.genre || '',
-      settingText: data.settingText || ''
+      settingText: data.settingText || '',
+      async: true
     }
   })
   novelVectors.listByNovel(Number(route.params.id)).then((data) => {
@@ -112,7 +126,8 @@ async function onSubmit() {
         userId: props.userId,
         title: form.value.title,
         genre: form.value.genre,
-        settingText: form.value.settingText
+        settingText: form.value.settingText,
+        async: form.value.async
       })
       for (const vectorId of selectedVectorIds.value) {
         await novelVectors.add(novel.id, vectorId)
@@ -154,6 +169,19 @@ async function onSubmit() {
   cursor: pointer;
 }
 .library-check input {
+  width: auto;
+}
+.generate-mode {
+  display: flex;
+  gap: 16px;
+}
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.radio-label input {
   width: auto;
 }
 .actions {

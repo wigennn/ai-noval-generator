@@ -54,6 +54,14 @@ logging:
     org.springframework.web: INFO
     org.hibernate: INFO
 
+# RocketMQ（AI 异步生成；需显式开启并配置 name-server）
+rocketmq:
+  enabled: ${ROCKETMQ_ENABLED:false}
+  name-server: ${ROCKETMQ_NAME_SERVER:}
+  producer:
+    group: ai-novel-producer
+    send-message-timeout: 30000
+
 # Mail（可选，用于发送验证码；不配置时验证码仅打印到控制台便于开发）
 # spring:
 #   mail:

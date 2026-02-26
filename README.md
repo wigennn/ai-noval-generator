@@ -9,13 +9,14 @@
 - **资料库**：上传并管理参考资料（用户向量），供 RAG 检索使用
 - **向量检索**：集成 Qdrant 存储章节与用户资料向量，支持语义检索
 - **AI 集成**：基于 LangChain4j + OpenAI（可配置 API Key / Base URL），用于对话与嵌入
+- **AI 异步生成**：小说结构、章节内容支持通过 RocketMQ 异步生成；前端可选择「异步生成」或「实时生成」
 - **邮箱验证码登录**：输入邮箱获取验证码，验证码登录；未注册邮箱将自动创建账号
 
 ## 技术栈
 
 | 层级     | 技术 |
 |----------|------|
-| 后端     | Java 17、Spring Boot 3.2、Spring Data JPA、LangChain4j、Qdrant、MySQL |
+| 后端     | Java 17、Spring Boot 3.2、Spring Data JPA、LangChain4j、Qdrant、MySQL、RocketMQ |
 | 前端     | Vue 3、Vue Router、Vite 5、Axios |
 | AI/向量  | OpenAI API（Chat + Embedding）、Qdrant 向量库 |
 
@@ -46,6 +47,7 @@ ai-noval-generator/
 - **Node.js** 18+（用于前端）
 - **MySQL** 8.x
 - **Qdrant**（向量数据库，默认端口 6333）
+- **RocketMQ**（可选，用于 AI 异步生成；不配置时仅可使用「实时生成」）
 - **OpenAI API Key**（或兼容接口的 Base URL + Key）
 
 ## 快速开始
@@ -106,6 +108,8 @@ npm run dev
 | `langchain4j.open-ai.chat-model.model-name` | 对话模型 | gpt-4 |
 | `langchain4j.embedding-model.open-ai.model-name` | 嵌入模型 | text-embedding-3-small |
 | `spring.mail.host` / `spring.mail.username` 等 | 邮件服务（可选，用于发送登录验证码） | 不配置时验证码仅打印到控制台 |
+| `rocketmq.name-server` | RocketMQ 地址（可选，用于 AI 异步生成） | 不配置时仅支持实时生成，异步选项自动走同步 |
+| `rocketmq.enabled` | 是否启用 RocketMQ（true 时需配置 name-server） | false |
 
 前端开发环境下 API 代理在 `web/vite.config.js` 中配置（`/api` → `http://localhost:8080`）。
 

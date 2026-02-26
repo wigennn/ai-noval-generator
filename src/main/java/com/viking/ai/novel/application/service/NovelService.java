@@ -4,8 +4,9 @@ import com.viking.ai.novel.domain.model.Novel;
 import com.viking.ai.novel.domain.model.Task;
 import com.viking.ai.novel.domain.repository.NovelRepository;
 import com.viking.ai.novel.domain.repository.TaskRepository;
-import lombok.RequiredArgsConstructor;
+import com.viking.ai.novel.infrastructure.mq.AiGenerateProducer;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,42 +17,52 @@ import java.util.Optional;
  * 小说应用服务
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class NovelService {
-    
+
     private final NovelRepository novelRepository;
     private final TaskRepository taskRepository;
     private final NovelGenerationTaskService novelGenerationTaskService;
-    
+    private final AiGenerateProducer aiGenerateProducer;
+
+    public NovelService(NovelRepository novelRepository,
+                        TaskRepository taskRepository,
+                        NovelGenerationTaskService novelGenerationTaskService,
+                        @Autowired(required = false) AiGenerateProducer aiGenerateProducer) {
+        this.novelRepository = novelRepository;
+        this.taskRepository = taskRepository;
+        this.novelGenerationTaskService = novelGenerationTaskService;
+        this.aiGenerateProducer = aiGenerateProducer;
+    }
+
     /**
      * 创建小说并生成结构
+     * @param async true=通过 MQ 异步生成，false=同步生成（阻塞至完成）
      */
     @Transactional
-    public Novel createNovel(Long userId, String title, String genre, String settingText) {
-        // 创建小说实体
+    public Novel createNovel(Long userId, String title, String genre, String settingText, boolean async) {
         Novel novel = Novel.builder()
                 .userId(userId)
                 .title(title)
                 .genre(genre)
                 .settingText(settingText)
-                .status(0) // 草稿状态
+                .status(0)
                 .build();
-        
         novel = novelRepository.save(novel);
-        
-        // 创建异步任务生成小说结构
+
         Task task = Task.builder()
                 .taskName("生成小说结构")
                 .taskType("GENERATE_NOVEL_STRUCTURE")
                 .taskRelationId(novel.getId())
-                .taskStatus(0) // 待处理
+                .taskStatus(0)
                 .build();
         taskRepository.save(task);
-        
-        // 异步生成小说结构
-        novelGenerationTaskService.generateNovelStructureAsync(novel.getId(), task.getId());
-        
+
+        if (async && aiGenerateProducer != null) {
+            aiGenerateProducer.sendNovelStructure(novel.getId(), task.getId());
+        } else {
+            novelGenerationTaskService.doGenerateNovelStructure(novel.getId(), task.getId());
+        }
         return novel;
     }
     

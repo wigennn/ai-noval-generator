@@ -34,7 +34,8 @@ public class ChapterController {
                     request.getNovelId(),
                     request.getChapterNumber(),
                     request.getTitle(),
-                    request.getAbstractContent()
+                    request.getAbstractContent(),
+                    request.getAsync() != Boolean.FALSE
             );
             return ResponseEntity.status(HttpStatus.CREATED).body(chapterMapper.toDTO(chapter));
         } catch (Exception e) {

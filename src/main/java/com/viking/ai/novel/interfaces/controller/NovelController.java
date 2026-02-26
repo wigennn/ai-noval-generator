@@ -40,7 +40,8 @@ public class NovelController {
                     request.getUserId(),
                     request.getTitle(),
                     request.getGenre(),
-                    request.getSettingText()
+                    request.getSettingText(),
+                    request.getAsync() != Boolean.FALSE
             );
             return ResponseEntity.status(HttpStatus.CREATED).body(novelMapper.toDTO(novel));
         } catch (Exception e) {
