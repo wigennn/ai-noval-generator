@@ -9,6 +9,7 @@
 - **资料库**：上传并管理参考资料（用户向量），供 RAG 检索使用
 - **向量检索**：集成 Qdrant 存储章节与用户资料向量，支持语义检索
 - **AI 集成**：基于 LangChain4j + OpenAI（可配置 API Key / Base URL），用于对话与嵌入
+- **邮箱验证码登录**：输入邮箱获取验证码，验证码登录；未注册邮箱将自动创建账号
 
 ## 技术栈
 
@@ -104,6 +105,7 @@ npm run dev
 | `langchain4j.open-ai.chat-model.base-url` | API 基础 URL | https://api.openai.com/v1 |
 | `langchain4j.open-ai.chat-model.model-name` | 对话模型 | gpt-4 |
 | `langchain4j.embedding-model.open-ai.model-name` | 嵌入模型 | text-embedding-3-small |
+| `spring.mail.host` / `spring.mail.username` 等 | 邮件服务（可选，用于发送登录验证码） | 不配置时验证码仅打印到控制台 |
 
 前端开发环境下 API 代理在 `web/vite.config.js` 中配置（`/api` → `http://localhost:8080`）。
 

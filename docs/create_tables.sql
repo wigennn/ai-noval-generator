@@ -4,7 +4,7 @@ create TABLE users
     id         BIGINT PRIMARY KEY AUTO_INCREMENT,
     username   VARCHAR(255) default NULL,
     password   VARCHAR(255) default NULL,
-    phone      VARCHAR(255) NOT NULL,
+    phone      VARCHAR(255) default NULL,
     email      VARCHAR(255) default NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

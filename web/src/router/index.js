@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { loadMe, currentUser } from '../store/auth'
 
 const routes = [
+  { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { title: '登录', auth: false } },
   { path: '/', name: 'Home', component: () => import('../views/Home.vue'), meta: { title: '首页' } },
   { path: '/novels', name: 'NovelList', component: () => import('../views/NovelList.vue'), meta: { title: '我的小说' } },
   { path: '/novels/new', name: 'NovelNew', component: () => import('../views/NovelForm.vue'), meta: { title: '创建小说' } },
@@ -12,6 +14,14 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+router.beforeEach(async (to) => {
+  await loadMe()
+  if (to.meta.auth === false) return
+  if (!currentUser.value) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
 })
 
 router.afterEach((to) => {

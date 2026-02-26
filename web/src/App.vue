@@ -1,6 +1,10 @@
 <template>
   <div class="app">
-    <header class="header">
+    <template v-if="isLoginPage">
+      <router-view />
+    </template>
+    <template v-else>
+      <header class="header">
       <router-link to="/" class="brand">
         <span class="logo-icon">🔥</span>
         <div class="brand-text">
@@ -28,10 +32,8 @@
         </button>
         <button type="button" class="icon-btn" title="通知">🔔</button>
         <button type="button" class="icon-btn" title="设置" @click="openApiSettings">⚙</button>
-        <div class="user-id-wrap">
-          <span class="user-id-label">用户</span>
-          <input v-model.number="userId" type="number" min="1" class="user-id-input" placeholder="ID" />
-        </div>
+        <span class="user-email">{{ currentUser?.email || currentUser?.username || '用户' }}</span>
+        <button type="button" class="btn-logout" @click="handleLogout">退出</button>
       </div>
     </header>
 
@@ -46,18 +48,20 @@
       @created="onProjectCreatedFromModal"
     />
     <ApiSettingsModal v-if="showApiModal" @close="showApiModal = false" @saved="onApiSaved" />
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, computed, provide } from 'vue'
+import { ref, computed, provide } from 'vue'
+import { useRoute } from 'vue-router'
 import CreateProjectModal from './components/CreateProjectModal.vue'
 import ApiSettingsModal from './components/ApiSettingsModal.vue'
+import { useAuth } from './store/auth'
 
-const userId = ref(Number(localStorage.getItem('novel_user_id')) || 1)
-watch(userId, (v) => {
-  if (v) localStorage.setItem('novel_user_id', String(v))
-})
+const route = useRoute()
+const { currentUser, userId, logout } = useAuth()
+const isLoginPage = computed(() => route.path === '/login')
 
 const toastMessage = ref('')
 const toastType = ref('success')
@@ -71,6 +75,11 @@ function showToast(msg, type = 'success') {
     toastMessage.value = ''
     toastTimer.value = null
   }, 3000)
+}
+
+async function handleLogout() {
+  await logout()
+  window.location.href = '/login'
 }
 
 const showCreateModal = ref(false)
@@ -198,20 +207,28 @@ function onApiSaved() {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
-.user-id-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 8px;
-}
-.user-id-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-.user-id-input {
-  width: 64px;
-  padding: 6px 8px;
+.user-email {
   font-size: 13px;
+  color: var(--text-secondary);
+  margin-left: 8px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.btn-logout {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  margin-left: 4px;
+}
+.btn-logout:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 .main {
   flex: 1;

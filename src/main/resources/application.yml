@@ -41,6 +41,11 @@ langchain4j:
 # Server Configuration
 server:
   port: 8080
+  servlet:
+    session:
+      cookie:
+        same-site: lax
+        path: /
 
 # Logging
 logging:
@@ -48,3 +53,14 @@ logging:
     com.viking.ai.novel: DEBUG
     org.springframework.web: INFO
     org.hibernate: INFO
+
+# Mail（可选，用于发送验证码；不配置时验证码仅打印到控制台便于开发）
+# spring:
+#   mail:
+#     host: smtp.example.com
+#     port: 587
+#     username: your@email.com
+#     password: your-password
+#     properties:
+#       mail.smtp.auth: true
+#       mail.smtp.starttls.enable: true
