@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: ai-novel-generator
+  
+  datasource:
+    url: jdbc:mysql://localhost:3306/ai_novel?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+
+# Qdrant Configuration
+qdrant:
+  host: localhost
+  port: 6333
+  collection-name: novel-chapters
+
+# LangChain4j Configuration
+langchain4j:
+  open-ai:
+    chat-model:
+      api-key: ${OPENAI_API_KEY:your-api-key}
+      base-url: https://api.openai.com/v1
+      model-name: gpt-4
+      temperature: 0.7
+      timeout: 60s
+  embedding-model:
+    open-ai:
+      api-key: ${OPENAI_API_KEY:your-api-key}
+      base-url: https://api.openai.com/v1
+      model-name: text-embedding-3-small
+
+# Server Configuration
+server:
+  port: 8080
+
+# Logging
+logging:
+  level:
+    com.viking.ai.novel: DEBUG
+    org.springframework.web: INFO
+    org.hibernate: INFO
