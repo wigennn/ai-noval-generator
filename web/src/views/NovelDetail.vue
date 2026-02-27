@@ -155,7 +155,16 @@
           <div class="chapter-detail-content">
             <div class="chapter-detail-header">
               <h3>第 {{ selectedChapter.chapterNumber }} 章 {{ selectedChapter.title || '（无标题）' }}</h3>
-              <button type="button" class="btn-close" @click="closeChapterDetail">×</button>
+              <div class="chapter-detail-actions">
+                <button 
+                  v-if="chapterDetailExportableText"
+                  type="button" 
+                  class="btn-export-txt"
+                  @click="exportChapterTxt">
+                  📄 导出 TXT
+                </button>
+                <button type="button" class="btn-close" @click="closeChapterDetail">×</button>
+              </div>
             </div>
             <div class="chapter-detail-body">
               <!-- 正在生成中（状态为0或1，且有流式内容） -->
@@ -327,6 +336,16 @@ const outlineChapters = computed(() => {
     }
   }
   return result
+})
+
+// 章节详情中可用于导出 TXT 的正文（流式内容或已保存内容）
+const chapterDetailExportableText = computed(() => {
+  if (!selectedChapter.value) return ''
+  const ch = selectedChapter.value
+  const streamed = streamingContent.value[ch.id]
+  if (streamed && streamed.trim()) return streamed
+  if (ch.content && ch.content.trim()) return ch.content
+  return ''
 })
 
 function load() {
@@ -568,6 +587,22 @@ function closeChapterDetail() {
     wsSubscription.unsubscribe()
     wsSubscription = null
   }
+}
+
+function exportChapterTxt() {
+  const ch = selectedChapter.value
+  const text = chapterDetailExportableText.value
+  if (!ch || !text) return
+  const title = `第${ch.chapterNumber}章 ${(ch.title || '无标题').trim()}`
+  const full = title + '\n\n' + text
+  const blob = new Blob(['\uFEFF' + full], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const safeName = (novel.value?.title || '章节') + '-' + title.replace(/[\s\\/:*?"<>|]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') + '.txt'
+  a.download = safeName || 'chapter.txt'
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 function openCreateFromOutline(oc) {
@@ -1134,6 +1169,26 @@ function doExport(format) {
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+}
+
+.chapter-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-export-txt {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--accent);
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-export-txt:hover {
+  background: var(--accent-light);
 }
 
 .btn-close {
