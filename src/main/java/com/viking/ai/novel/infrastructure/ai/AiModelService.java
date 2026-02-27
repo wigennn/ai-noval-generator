@@ -158,7 +158,7 @@ public class AiModelService {
             @Override
             public void onComplete(Response<AiMessage> response) {
                 if (callback != null) {
-                    callback.onComplete(full.toString());
+                    callback.onComplete(response.content().text());
                 }
             }
         });
