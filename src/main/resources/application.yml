@@ -52,8 +52,8 @@ rocketmq:
     mail:
       host: smtp.163.com
       port: 465
-      username: wigen96@163.com
-      password: Wigen@19960101
+      username: test@163.com
+      password: test
       properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
