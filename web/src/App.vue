@@ -6,9 +6,9 @@
     <template v-else>
       <header class="header">
       <router-link to="/" class="brand">
-        <span class="logo-icon">🔥</span>
+        <span class="logo-icon">👊</span>
         <div class="brand-text">
-          <span class="brand-title">AI 小说生成器</span>
+          <span class="brand-title">AI 小说生成利器</span>
           <span class="brand-subtitle">Novel Generator</span>
         </div>
       </router-link>

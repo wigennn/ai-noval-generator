@@ -1,8 +1,8 @@
 <template>
   <div class="home">
-    <p class="hero-tagline">基于RAG的AI创作工具</p>
-    <h1 class="hero-title">AI 小说生成器</h1>
-<!--    <p class="hero-desc">AI生成小说章节大纲，让创作更高效</p>-->
+    <p class="hero-tagline">基于RAG的AI小说创作工具</p>
+    <h1 class="hero-title">AI 小说生成利器</h1>
+    <p class="hero-desc">核心解决ai长篇小说生成前后不一致问题</p>
     <button type="button" class="btn-create" @click="openCreateModal">
       <span class="btn-create-icon">+</span>
       创建新项目
