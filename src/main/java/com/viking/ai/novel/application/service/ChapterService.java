@@ -176,7 +176,7 @@ public class ChapterService {
             return;
         }
         // 匹配格式：## 第X章 [章节标题] 或 ## 第X章 章节标题
-        Pattern pattern = Pattern.compile("^##\\s*第([一二三四五六七八九十百千万]+|\\d+)章\\s*(.*)$", Pattern.MULTILINE);
+        Pattern pattern = Pattern.compile("^[#]+\\s*第([一二三四五六七八九十百千万]+|\\d+)章\\s*(.*)$", Pattern.MULTILINE);
         Matcher matcher = pattern.matcher(outline);
 
         while (matcher.find()) {

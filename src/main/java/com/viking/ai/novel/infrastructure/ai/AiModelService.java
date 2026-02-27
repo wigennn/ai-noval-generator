@@ -246,68 +246,102 @@ public class AiModelService {
             @Override
             public void onComplete(Response<AiMessage> response) {
                 if (callback != null) {
-                    callback.onComplete(full.toString());
+                    callback.onComplete(response.content().text());
                 }
             }
         });
     }
 
     /**
-     * 生成章节大纲（流式）
+     * 生成章节大纲（流式）。当 existingOutline 非空时为「继续生成」模式，将已有大纲带入 prompt，仅生成后续内容。
+     *
+     * @param existingOutline 已有大纲内容；为 null 或空时表示全新生成
      */
     public void streamChapterOutline(String title, String genre, String settingText,
-                                     String structure, UserModel model, StreamCallback callback) {
+                                     String structure, String existingOutline,
+                                     UserModel model, StreamCallback callback) {
         StreamingChatLanguageModel streamingModel = getStreamingChatModel(model);
 
-        String prompt = String.format("""
-            你是一位专业的小说创作顾问。请根据以下信息生成详细的章节大纲：
-            
-            【基本信息】
-            小说标题：%s
-            题材：%s
-            世界观设定：%s
-            
-            【小说架构】
-            %s
-            
-            【要求】
-            请生成一份完整的章节大纲，要求：
-            
-            1. 根据小说架构中的章节规划，为每一章生成详细大纲
-            2. 每章大纲应包含：
-               - 章节序号和标题
-               - 章节核心事件（主要发生什么）
-               - 出场角色
-               - 章节目标（推进主线/支线/人物塑造/世界观展示等）
-               - 章节结尾的悬念或转折点
-               - 与前后章的衔接点
-            
-            3. 确保章节之间的逻辑连贯性
-            4. 合理分配情节节奏（紧张/舒缓交替）
-            5. 确保重要伏笔和线索的埋设时机
-            
-            【输出格式】
-            请按照以下格式输出：
-            
-            ## 第X章 [章节标题]
-            - **核心事件**：[描述]
-            - **出场角色**：[角色列表]
-            - **章节目标**：[说明]
-            - **章节结尾**：[悬念或转折]
-            - **衔接点**：[与前后章的联系]
-            
-            【注意事项】
-            - 章节数量应与架构中的规划一致
-            - 每章大纲应详细但不过于冗长
-            - 确保整体故事节奏的合理性
-            """, title, genre, settingText, structure != null ? structure : "无");
-
-        StringBuilder full = new StringBuilder();
+        final String prompt;
+        if (existingOutline != null && !existingOutline.trim().isEmpty()) {
+            prompt = String.format("""
+                你是一位专业的小说创作顾问。请根据以下信息，在【已有章节大纲】的基础上继续生成后续章节的详细大纲。
+                
+                【基本信息】
+                小说标题：%s
+                题材：%s
+                世界观设定：%s
+                
+                【小说架构】
+                %s
+                
+                【已有章节大纲】
+                以下是大纲中已写好的部分，请严格接续其后继续写，不要重复、不要改写已有内容：
+                
+                ---
+                %s
+                ---
+                
+                【要求】
+                1. 仅输出「尚未写到的后续章节」的详细大纲，从下一章开始。
+                2. 每章大纲格式与已有部分一致：
+                   ## 第X章 [章节标题]
+                   - **核心事件**：[描述]
+                   - **出场角色**：[角色列表]
+                   - **章节目标**：[说明]
+                   - **章节结尾**：[悬念或转折]
+                   - **衔接点**：[与前后章的联系]
+                3. 章节序号、情节要与小说架构中的规划一致，并与已有大纲衔接自然。
+                4. 不要输出任何解释性开头，直接从下一章的 "## 第X章" 开始。
+                """, title, genre, settingText, structure != null ? structure : "无", existingOutline.trim());
+        } else {
+            prompt = String.format("""
+                你是一位专业的小说创作顾问。请根据以下信息生成详细的章节大纲：
+                
+                【基本信息】
+                小说标题：%s
+                题材：%s
+                世界观设定：%s
+                
+                【小说架构】
+                %s
+                
+                【要求】
+                请生成一份完整的章节大纲，要求：
+                
+                1. 根据小说架构中的章节规划，为每一章生成详细大纲
+                2. 每章大纲应包含：
+                   - 章节序号和标题
+                   - 章节核心事件（主要发生什么）
+                   - 出场角色
+                   - 章节目标（推进主线/支线/人物塑造/世界观展示等）
+                   - 章节结尾的悬念或转折点
+                   - 与前后章的衔接点
+                
+                3. 确保章节之间的逻辑连贯性
+                4. 合理分配情节节奏（紧张/舒缓交替）
+                5. 确保重要伏笔和线索的埋设时机
+                
+                【输出格式】
+                请按照以下格式输出：
+                
+                ## 第X章 [章节标题]
+                - **核心事件**：[描述]
+                - **出场角色**：[角色列表]
+                - **章节目标**：[说明]
+                - **章节结尾**：[悬念或转折]
+                - **衔接点**：[与前后章的联系]
+                
+                【注意事项】
+                - 章节数量应与架构中的规划一致
+                - 每章大纲应详细但不过于冗长
+                - 确保整体故事节奏的合理性
+                """, title, genre, settingText, structure != null ? structure : "无");
+        }
 
         streamingModel.generate(prompt, new StreamingResponseHandler<AiMessage>() {
             @Override
             public void onNext(String token) {
-                full.append(token);
                 if (callback != null) {
                     callback.onDelta(token);
                 }

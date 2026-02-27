@@ -17,4 +17,9 @@ public class NovelStreamRequest {
      * 流式类型：structure（小说结构）或 outline（章节大纲）
      */
     private String streamType;
+
+    /**
+     * 仅当 streamType=outline 时有效：true=在已有大纲基础上继续生成，false 或不传=重新生成
+     */
+    private Boolean continueOutline;
 }

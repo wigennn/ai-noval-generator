@@ -2,6 +2,7 @@ package com.viking.ai.novel.interfaces.strategy;
 
 import com.viking.ai.novel.domain.model.Novel;
 import com.viking.ai.novel.domain.model.UserModel;
+import com.viking.ai.novel.interfaces.dto.NovelStreamRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,12 +29,14 @@ public interface NovelStreamStrategy {
      * @param model        用户模型配置
      * @param messagingTemplate WebSocket 消息模板
      * @param stopped      停止标记
+     * @param request      客户端请求（可含 continueOutline 等选项，可为 null）
      * @param onFinished   生成完成或出错时的回调（用于清理资源等）
      */
     void stream(Novel novel,
                 UserModel model,
                 SimpMessagingTemplate messagingTemplate,
                 AtomicBoolean stopped,
+                NovelStreamRequest request,
                 Runnable onFinished);
 }
 

@@ -6,6 +6,7 @@ import com.viking.ai.novel.domain.repository.NovelRepository;
 import com.viking.ai.novel.application.service.ChapterService;
 import com.viking.ai.novel.infrastructure.ai.AiModelService;
 import com.viking.ai.novel.interfaces.dto.ChapterStreamPayload;
+import com.viking.ai.novel.interfaces.dto.NovelStreamRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -40,6 +41,7 @@ public class OutlineStreamStrategy implements NovelStreamStrategy {
                        UserModel model,
                        SimpMessagingTemplate messagingTemplate,
                        AtomicBoolean stopped,
+                       NovelStreamRequest request,
                        Runnable onFinished) {
         String destination = buildDestination(novel.getId());
 
@@ -52,18 +54,25 @@ public class OutlineStreamStrategy implements NovelStreamStrategy {
             return;
         }
 
-        // 如果已存在章节大纲，说明是"重新生成"，需要先删除原有章节记录
-        if (novel.getChapterOutline() != null && !novel.getChapterOutline().isEmpty()) {
+        boolean continueOutline = Boolean.TRUE.equals(request != null ? request.getContinueOutline() : null);
+        String existingOutline = (continueOutline && novel.getChapterOutline() != null && !novel.getChapterOutline().isEmpty())
+                ? novel.getChapterOutline() : null;
+
+        // 仅当「重新生成」时删除原有章节；继续生成时不删
+        if (existingOutline == null && novel.getChapterOutline() != null && !novel.getChapterOutline().isEmpty()) {
             Long novelId = novel.getId();
             log.info("Regenerating chapter outline, delete existing chapters for novel: {}", novelId);
             chapterService.deleteChaptersByNovelId(novelId);
         }
+
+        final String existingForMerge = existingOutline; // for use in onComplete
 
         aiModelService.streamChapterOutline(
                 novel.getTitle(),
                 novel.getGenre(),
                 novel.getSettingText(),
                 novel.getStructure(),
+                existingOutline,
                 model,
                 new AiModelService.StreamCallback() {
                     @Override
@@ -86,12 +95,17 @@ public class OutlineStreamStrategy implements NovelStreamStrategy {
                             return;
                         }
                         try {
-                            // 生成完成，保存章节大纲
-                            novel.setChapterOutline(fullText);
+                            String fullOutline = fullText;
+                            if (existingForMerge != null && !existingForMerge.isEmpty()) {
+                                String continuation = fullText != null ? fullText.trim() : "";
+                                fullOutline = (existingForMerge + "\n\n" + continuation).trim();
+                            }
+                            // 生成完成，完整更新小说表的章节大纲
+                            novel.setChapterOutline(fullOutline);
                             novelRepository.save(novel);
 
-                            // 同步章节表：根据大纲提取每章标题，创建占位章节
-                            chapterService.syncChaptersFromOutline(novel.getId(), fullText);
+                            // 同步章节表：根据完整大纲提取每章标题，创建/更新占位章节
+                            chapterService.syncChaptersFromOutline(novel.getId(), fullOutline);
                             messagingTemplate.convertAndSend(destination,
                                     new ChapterStreamPayload("complete", null));
                         } catch (Exception e) {

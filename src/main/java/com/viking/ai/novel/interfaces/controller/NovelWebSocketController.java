@@ -71,7 +71,7 @@ public class NovelWebSocketController {
                             novel.getUserId(), ModelTypeEnum.NORMAL.getType())
                     .orElseThrow(() -> new RuntimeException("User model not found: " + novel.getUserId()));
 
-            strategy.stream(novel, model, messagingTemplate, stopped, () -> activeStreams.remove(streamKey));
+            strategy.stream(novel, model, messagingTemplate, stopped, request, () -> activeStreams.remove(streamKey));
         } catch (Exception e) {
             activeStreams.remove(streamKey);
             log.error("Error starting novel stream", e);

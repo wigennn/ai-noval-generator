@@ -103,9 +103,14 @@
         <div v-else class="outline-content">
           <div class="outline-header">
             <h2 class="section-title">章节大纲</h2>
-            <button type="button" class="btn-regenerate" :disabled="generatingOutline" @click="startStreamOutline">
-              {{ generatingOutline ? '生成中...' : '重新生成' }}
-            </button>
+            <div class="outline-actions">
+              <button type="button" class="btn-continue" :disabled="generatingOutline" @click="startStreamOutline(true)">
+                {{ generatingOutline ? '生成中...' : '继续生成' }}
+              </button>
+              <button type="button" class="btn-regenerate" :disabled="generatingOutline" @click="startStreamOutline(false)">
+                {{ generatingOutline ? '生成中...' : '重新生成' }}
+              </button>
+            </div>
           </div>
           <div class="outline-text rich-text" v-html="asHtml(novel.chapterOutline)"></div>
         </div>
@@ -137,36 +142,13 @@
               v-if="ch.status === 0 || ch.status === 1"
               type="button" 
               class="btn-generate-chapter"
-              @click.stop="startStreamChapter(ch)"
+              @click.stop="openChapterDetail(ch)"
               :disabled="streamingChapters.has(ch.id)">
               {{ streamingChapters.has(ch.id) ? '生成中...' : '生成内容' }}
             </button>
           </li>
         </ul>
 
-        <!-- 从章节大纲创建章节内容 -->
-        <div v-if="outlineChapters.length" class="outline-chapter-section">
-          <h3 class="section-subtitle">从章节大纲创建</h3>
-          <ul class="outline-chapter-list">
-            <li 
-              v-for="oc in outlineChapters" 
-              :key="`outline-${oc.chapterNumber}`" 
-              class="outline-chapter-item">
-              <span class="num">第 {{ oc.chapterNumber }} 章</span>
-              <span class="title">{{ oc.title || '（无标题）' }}</span>
-              <span class="status" v-if="findChapterByNumber(oc.chapterNumber)">
-                已创建
-              </span>
-              <button
-                v-else
-                type="button"
-                class="btn-generate-chapter"
-                @click.stop="openCreateFromOutline(oc)">
-                创建章节内容
-              </button>
-            </li>
-          </ul>
-        </div>
 
         <!-- 章节详情/编辑 Modal -->
         <div v-if="selectedChapter" class="chapter-detail-modal" @click.self="closeChapterDetail">
@@ -573,12 +555,9 @@ function openChapterDetail(chapter) {
   selectedChapter.value = { ...chapter }
   // 如果正在生成，订阅流式内容
   if (streamingChapters.value.has(chapter.id)) {
-    // 正在生成中，订阅流式更新
     subscribeChapterStream(novel.value.id, chapter.chapterNumber, chapter.id)
-  } else if (chapter.status === 2 && chapter.content) {
-    // 已完成的章节，内容已存在，无需加载
   } else {
-    // 加载章节详情
+    // 加载章节详情（含 content），支持内容查看
     loadChapterDetail(chapter.id)
   }
 }
@@ -701,7 +680,7 @@ function startStreamStructure() {
   })
 }
 
-function startStreamOutline() {
+function startStreamOutline(continueOutline = false) {
   if (!id.value || generatingOutline.value || !novel.value?.structure) return
   
   const client = getWebSocketClient()
@@ -711,7 +690,8 @@ function startStreamOutline() {
   }
 
   generatingOutline.value = true
-  streamingOutline.value = ''
+  // 继续生成时先显示已有大纲，后续 delta 会追加
+  streamingOutline.value = continueOutline && novel.value?.chapterOutline ? novel.value.chapterOutline : ''
 
   const topic = `/topic/novels/${id.value}/outline`
   let subscription = null
@@ -752,12 +732,13 @@ function startStreamOutline() {
     }
   })
 
-  // 发送生成请求
+  // 发送生成请求（continueOutline: true 时带已有大纲继续生成）
   client.publish({
     destination: '/app/novels/stream',
     body: JSON.stringify({
       novelId: id.value,
-      streamType: 'outline'
+      streamType: 'outline',
+      continueOutline: continueOutline
     })
   })
 }
@@ -890,6 +871,28 @@ function doExport(format) {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+}
+.outline-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.btn-continue {
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.btn-continue:hover:not(:disabled) {
+  background: var(--accent-dark, #2563eb);
+  border-color: var(--accent-dark, #2563eb);
+}
+.btn-continue:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .btn-regenerate {
   padding: 8px 16px;

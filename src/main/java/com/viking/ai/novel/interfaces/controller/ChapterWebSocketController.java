@@ -134,12 +134,18 @@ public class ChapterWebSocketController {
                                     String abstractContent = aiModelService.generateChapterAbstract(fullText, model);
                                     chapter.setAbstractContent(abstractContent);
                                 }
-                                if (chapter.getVectorId() != null) {
-                                    qdrantService.deleteVector(chapter.getVectorId());
+
+                                try {
+                                    if (chapter.getVectorId() != null) {
+                                        qdrantService.deleteVector(chapter.getVectorId());
+                                    }
+                                    String vectorId = qdrantService.storeChapter(
+                                            chapter.getId().toString(), fullText, model);
+                                    chapter.setVectorId(vectorId);
+                                } catch (Exception e) {
+                                    // TODO
+                                    log.error("Error storing chapter to Qdrant", e);
                                 }
-                                String vectorId = qdrantService.storeChapter(
-                                        chapter.getId().toString(), fullText, model);
-                                chapter.setVectorId(vectorId);
                                 chapter.setStatus(2);
                                 chapterRepository.save(chapter);
 

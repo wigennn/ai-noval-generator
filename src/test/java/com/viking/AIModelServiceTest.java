@@ -1,7 +1,10 @@
 package com.viking;
 
 import com.viking.ai.novel.NovelGeneratorApplication;
+import com.viking.ai.novel.application.service.ChapterService;
+import com.viking.ai.novel.domain.model.Novel;
 import com.viking.ai.novel.domain.model.UserModel;
+import com.viking.ai.novel.domain.repository.NovelRepository;
 import com.viking.ai.novel.domain.repository.UserModelRepository;
 import com.viking.ai.novel.infrastructure.ai.AiModelService;
 import com.viking.ai.novel.infrastructure.constants.ModelTypeEnum;
@@ -21,9 +24,13 @@ public class AIModelServiceTest {
 
     @Autowired
     private AiModelService aiModelService;
+    @Autowired
+    private ChapterService chapterService;
     
     @Autowired
     private UserModelRepository userModelRepository;
+    @Autowired
+    private NovelRepository novelRepository;
 
     @Test
     public void testMode() {
@@ -31,5 +38,11 @@ public class AIModelServiceTest {
         ChatLanguageModel chatModel = aiModelService.getChatModel(model);
         String message = chatModel.generate("你好");
         System.out.println(message);
+    }
+
+    @Test
+    public void testchap() {
+        Novel novel = novelRepository.findById(4L).orElseThrow(() -> new RuntimeException("小说未找到"));
+        chapterService.syncChaptersFromOutline(novel.getId(), novel.getChapterOutline());
     }
 }

@@ -2,15 +2,16 @@ package com.viking.ai.novel.interfaces.strategy;
 
 import com.viking.ai.novel.domain.model.Novel;
 import com.viking.ai.novel.domain.model.UserModel;
+import com.viking.ai.novel.domain.repository.NovelRepository;
 import com.viking.ai.novel.infrastructure.ai.AiModelService;
 import com.viking.ai.novel.interfaces.dto.ChapterStreamPayload;
+import com.viking.ai.novel.interfaces.dto.NovelStreamRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-
 /**
  * 小说结构流式生成策略
  */
@@ -20,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class StructureStreamStrategy implements NovelStreamStrategy {
 
     private final AiModelService aiModelService;
+    private final NovelRepository novelRepository;
 
     @Override
     public String getType() {
@@ -36,6 +38,7 @@ public class StructureStreamStrategy implements NovelStreamStrategy {
                        UserModel model,
                        SimpMessagingTemplate messagingTemplate,
                        AtomicBoolean stopped,
+                       NovelStreamRequest request,
                        Runnable onFinished) {
         String destination = buildDestination(novel.getId());
 
@@ -69,6 +72,7 @@ public class StructureStreamStrategy implements NovelStreamStrategy {
                             // 生成完成，保存小说结构
                             novel.setStructure(fullText);
                             // novel 的保存由调用方负责或在此处完成
+                            novelRepository.save(novel);
                             messagingTemplate.convertAndSend(destination,
                                     new ChapterStreamPayload("complete", null));
                         } catch (Exception e) {
