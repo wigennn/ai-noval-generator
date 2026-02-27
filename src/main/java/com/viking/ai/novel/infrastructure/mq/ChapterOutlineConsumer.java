@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  * 章节大纲生成 MQ 消费者：收到消息后执行 AI 生成
  */
 @Slf4j
-@Component
+//@Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "rocketmq.enabled", havingValue = "true")
 @RocketMQMessageListener(

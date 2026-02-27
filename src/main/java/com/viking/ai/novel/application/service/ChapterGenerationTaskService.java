@@ -37,7 +37,6 @@ public class ChapterGenerationTaskService {
     /**
      * 执行章节内容生成（同步逻辑，供实时调用或 MQ 消费者调用）
      */
-    @Transactional
     public void doGenerateChapterContent(Long novelId, Long chapterId, Long taskId) {
 
     }
