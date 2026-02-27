@@ -19,6 +19,8 @@ public class NovelDTO {
     private String settingText;
     private String structure;
     private String chapterOutline;
+    private Integer chapterNumber;
+    private Integer chapterWordCount;
     private Integer status;
     private LocalDateTime createdAt;
 }

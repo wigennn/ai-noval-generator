@@ -11,4 +11,5 @@ public interface ChapterRepository {
     List<Chapter> findByNovelId(Long novelId);
     Optional<Chapter> findByNovelIdAndChapterNumber(Long novelId, Integer chapterNumber);
     void deleteById(Long id);
+    void deleteByNovelId(Long novelId);
 }

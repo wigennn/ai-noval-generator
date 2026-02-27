@@ -72,6 +72,7 @@ public class ChapterGenerationTaskService {
                     chapter.getTitle(),
                     chapter.getAbstractContent(),
                     previousAbstracts,
+                    novel.getChapterWordCount(),
                     model
             );
             chapter.setContent(content);
@@ -90,7 +91,7 @@ public class ChapterGenerationTaskService {
             log.error("Error generating chapter content for chapter: {}", chapter.getId(), e);
             chapter.setStatus(0);
             chapterRepository.save(chapter);
-            task.setTaskStatus(0);
+            task.setTaskStatus(3);
             taskRepository.save(task);
         }
     }

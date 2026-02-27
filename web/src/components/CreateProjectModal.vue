@@ -46,21 +46,6 @@
           <textarea v-model="form.guidance" maxlength="1000" placeholder="你可以在这里添加额外的创作要求, 如特定角色设定、情节走向、写作风格等..." rows="3"></textarea>
           <span class="char-count">{{ (form.guidance || '').length }}/1000</span>
         </div>
-        <div class="field">
-          <label class="label">生成方式</label>
-          <div class="generate-mode">
-            <label class="radio-label">
-              <input v-model="form.async" type="radio" :value="true" />
-              <span>异步生成</span>
-              <span class="hint-inline">（推荐，通过消息队列后台生成，不阻塞页面）</span>
-            </label>
-            <label class="radio-label">
-              <input v-model="form.async" type="radio" :value="false" />
-              <span>实时生成</span>
-              <span class="hint-inline">（等待 AI 完成后返回，需较长时间）</span>
-            </label>
-          </div>
-        </div>
       </form>
       <div class="modal-footer">
         <button type="button" class="secondary" @click="$emit('close')">取消</button>
@@ -90,8 +75,7 @@ const form = ref({
   genre: '',
   estimatedChapters: 100,
   wordsPerChapter: 3000,
-  guidance: '',
-  async: true
+  guidance: ''
 })
 
 const saving = ref(false)
@@ -108,7 +92,8 @@ async function onSubmit() {
       title: form.value.title.trim(),
       genre: form.value.genre || undefined,
       settingText: settingText || undefined,
-      async: form.value.async
+      chapterNumber: form.value.estimatedChapters,
+      chapterWordCount: form.value.wordsPerChapter
     })
     const meta = { estimatedChapters: form.value.estimatedChapters, wordsPerChapter: form.value.wordsPerChapter }
     localStorage.setItem(`novel_meta_${novel.id}`, JSON.stringify(meta))
@@ -171,25 +156,6 @@ async function onSubmit() {
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
   border-radius: 0;
-}
-.generate-mode {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.radio-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 14px;
-}
-.radio-label input {
-  width: auto;
-}
-.hint-inline {
-  font-size: 12px;
-  color: var(--text-secondary);
 }
 .btn-icon {
   margin-right: 6px;

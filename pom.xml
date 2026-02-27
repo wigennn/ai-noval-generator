@@ -124,6 +124,12 @@
             <version>5.2.5</version>
         </dependency>
 
+        <!-- WebSocket (STOMP) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
         <!-- RocketMQ for async AI generation -->
         <dependency>
             <groupId>org.apache.rocketmq</groupId>

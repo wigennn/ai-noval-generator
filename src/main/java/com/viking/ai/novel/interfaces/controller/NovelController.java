@@ -41,7 +41,8 @@ public class NovelController {
                     request.getTitle(),
                     request.getGenre(),
                     request.getSettingText(),
-                    request.getAsync() != Boolean.FALSE
+                    request.getChapterNumber(),
+                    request.getChapterWordCount()
             );
             return ResponseEntity.status(HttpStatus.CREATED).body(novelMapper.toDTO(novel));
         } catch (Exception e) {

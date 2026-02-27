@@ -36,33 +36,21 @@ public class NovelService {
     }
 
     /**
-     * 创建小说并生成结构
-     * @param async true=通过 MQ 异步生成，false=同步生成（阻塞至完成）
+     * 创建小说
      */
     @Transactional
-    public Novel createNovel(Long userId, String title, String genre, String settingText, boolean async) {
+    public Novel createNovel(Long userId, String title, String genre, String settingText, 
+                             Integer chapterNumber, Integer chapterWordCount) {
         Novel novel = Novel.builder()
                 .userId(userId)
                 .title(title)
                 .genre(genre)
                 .settingText(settingText)
+                .chapterNumber(chapterNumber != null ? chapterNumber : 0)
+                .chapterWordCount(chapterWordCount != null ? chapterWordCount : 0)
                 .status(0)
                 .build();
         novel = novelRepository.save(novel);
-
-        Task task = Task.builder()
-                .taskName("生成小说结构")
-                .taskType("GENERATE_NOVEL_STRUCTURE")
-                .taskRelationId(novel.getId())
-                .taskStatus(0)
-                .build();
-        taskRepository.save(task);
-
-        if (async && aiGenerateProducer != null) {
-            aiGenerateProducer.sendNovelStructure(novel.getId(), task.getId(), userId);
-        } else {
-            novelGenerationTaskService.doGenerateNovelStructure(novel.getId(), task.getId(), userId);
-        }
         return novel;
     }
     

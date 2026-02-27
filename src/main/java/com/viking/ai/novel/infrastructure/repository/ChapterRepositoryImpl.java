@@ -37,4 +37,9 @@ public class ChapterRepositoryImpl implements ChapterRepository {
     public void deleteById(Long id) {
         jpaChapterRepository.deleteById(id);
     }
+
+    @Override
+    public void deleteByNovelId(Long novelId) {
+        jpaChapterRepository.deleteByNovelId(novelId);
+    }
 }

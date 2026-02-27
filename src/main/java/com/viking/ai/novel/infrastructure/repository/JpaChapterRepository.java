@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface JpaChapterRepository extends JpaRepository<Chapter, Long> {
     List<Chapter> findByNovelId(Long novelId);
     Optional<Chapter> findByNovelIdAndChapterNumber(Long novelId, Integer chapterNumber);
+    void deleteByNovelId(Long novelId);
 }

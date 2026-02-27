@@ -16,6 +16,12 @@ public class CreateNovelRequest {
 
     private String settingText;
 
+    /** 总章数 */
+    private Integer chapterNumber;
+
+    /** 章节字数 */
+    private Integer chapterWordCount;
+
     /** true=异步(MQ)生成结构，false=实时生成；默认 true */
     private Boolean async = true;
 }

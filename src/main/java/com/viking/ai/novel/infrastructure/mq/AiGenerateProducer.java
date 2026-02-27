@@ -27,15 +27,16 @@ public class AiGenerateProducer {
         log.info("Sent novel structure task: novelId={}, taskId={}", novelId, taskId);
     }
 
-    public void sendChapterContent(Long novelId, Long chapterId, Long taskId) {
-        ChapterContentMessage msg = new ChapterContentMessage(novelId, chapterId, taskId);
-        rocketMQTemplate.convertAndSend(TOPIC_CHAPTER_CONTENT, msg);
-        log.info("Sent chapter content task: novelId={}, chapterId={}, taskId={}", novelId, chapterId, taskId);
-    }
-    
     public void sendChapterOutline(Long novelId, Long taskId) {
         ChapterOutlineMessage msg = new ChapterOutlineMessage(novelId, taskId);
         rocketMQTemplate.convertAndSend(TOPIC_CHAPTER_OUTLINE, msg);
         log.info("Sent chapter outline task: novelId={}, taskId={}", novelId, taskId);
     }
+
+    public void sendChapterContent(Long novelId, Long chapterId, Long taskId) {
+        ChapterContentMessage msg = new ChapterContentMessage(novelId, chapterId, taskId);
+        rocketMQTemplate.convertAndSend(TOPIC_CHAPTER_CONTENT, msg);
+        log.info("Sent chapter content task: novelId={}, chapterId={}, taskId={}", novelId, chapterId, taskId);
+    }
+
 }

@@ -46,6 +46,7 @@ public class NovelGenerationTaskService {
                     novel.getTitle(),
                     novel.getGenre(),
                     novel.getSettingText(),
+                    novel.getChapterNumber(),
                     model
             );
             novel.setStructure(structure);
@@ -55,7 +56,7 @@ public class NovelGenerationTaskService {
             log.info("Successfully generated structure for novel: {}", novel.getId());
         } catch (Exception e) {
             log.error("Error generating novel structure for novel: {}", novel.getId(), e);
-            task.setTaskStatus(0);
+            task.setTaskStatus(3);
             taskRepository.save(task);
         }
     }
@@ -97,7 +98,7 @@ public class NovelGenerationTaskService {
             log.info("Successfully generated chapter outline for novel: {}", novel.getId());
         } catch (Exception e) {
             log.error("Error generating chapter outline for novel: {}", novel.getId(), e);
-            task.setTaskStatus(0);
+            task.setTaskStatus(3);
             taskRepository.save(task);
         }
     }

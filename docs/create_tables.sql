@@ -50,6 +50,8 @@ CREATE TABLE novel
     setting_text   LONGTEXT,              -- 世界观设定（用于RAG入库）
     structure      LONGTEXT,              -- 小说结构
     chapter_outline LONGTEXT,            -- 章节大纲
+    chapter_number int(10) DEFAULT 0,       -- 章节数量
+    chapter_word_count int(10) DEFAULT 0, --章节字数
     status         int(1) DEFAULT 0,     -- 0: 草稿，1: 发布中，2: 已完成
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -83,6 +85,6 @@ create TABLE task(
     task_name  VARCHAR(255) NOT NULL,
     task_type  VARCHAR(255) NOT NULL,
     task_relation_id BIGINT NOT NULL,
-    task_status int(1) DEFAULT 0, -- 0: 待处理，1: 处理中，2: 处理完成
+    task_status int(1) DEFAULT 0, -- 0: 待处理，1: 处理中，2: 处理完成 3:处理失败
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )

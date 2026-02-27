@@ -32,29 +32,44 @@
 
       <!-- 小说架构 Tab -->
       <section v-show="activeTab === 'structure'" class="content-panel card">
-        <div v-if="!novel.structure" class="generate-block">
+        <div v-if="!novel.structure && !streamingStructure" class="generate-block">
           <div class="generate-icon">✨</div>
           <h2 class="generate-title">开始生成小说架构</h2>
           <p class="generate-desc">AI 将基于作品创作法，为你生成核心种子、角色体系、世界观和情节架构</p>
-          <button type="button" class="btn-generate" :disabled="generatingStructure" @click="startGenerateStructure">
+          <button type="button" class="btn-generate" :disabled="generatingStructure" @click="startStreamStructure">
             <span class="btn-play">▷</span>
             {{ generatingStructure ? '生成中...' : '开始生成架构' }}
           </button>
         </div>
+        <div v-else-if="streamingStructure" class="structure-content">
+          <div class="structure-header">
+            <h2 class="section-title">正在生成小说架构...</h2>
+            <button type="button" class="btn-stop" @click="stopStreamStructure">
+              <span>⏹</span>
+              停止生成
+            </button>
+          </div>
+          <div class="streaming-content">
+            <div class="structure-text rich-text" v-html="asHtml(streamingStructure)"></div>
+            <div class="streaming-indicator">
+              <span class="typing-cursor">▊</span>
+            </div>
+          </div>
+        </div>
         <div v-else class="structure-content">
           <div class="structure-header">
             <h2 class="section-title">小说结构</h2>
-            <button type="button" class="btn-regenerate" :disabled="generatingStructure" @click="regenerateStructure">
+            <button type="button" class="btn-regenerate" :disabled="generatingStructure" @click="startStreamStructure">
               {{ generatingStructure ? '生成中...' : '重新生成' }}
             </button>
           </div>
-          <pre class="structure-text">{{ novel.structure }}</pre>
+          <div class="structure-text rich-text" v-html="asHtml(novel.structure)"></div>
         </div>
       </section>
 
       <!-- 章节大纲 Tab -->
       <section v-show="activeTab === 'outline'" class="content-panel card">
-        <div v-if="!novel.chapterOutline" class="generate-block">
+        <div v-if="!novel.chapterOutline && !streamingOutline" class="generate-block">
           <div class="generate-icon">📋</div>
           <h2 class="generate-title">开始生成章节大纲</h2>
           <p class="generate-desc">AI 将基于小说架构，为你生成详细的章节大纲，包含每章的核心事件、出场角色和关键场景</p>
@@ -65,33 +80,178 @@
             type="button" 
             class="btn-generate" 
             :disabled="generatingOutline || !novel.structure" 
-            @click="startGenerateOutline">
+            @click="startStreamOutline">
             <span class="btn-play">▷</span>
             {{ generatingOutline ? '生成中...' : '开始生成大纲' }}
           </button>
         </div>
+        <div v-else-if="streamingOutline" class="outline-content">
+          <div class="outline-header">
+            <h2 class="section-title">正在生成章节大纲...</h2>
+            <button type="button" class="btn-stop" @click="stopStreamOutline">
+              <span>⏹</span>
+              停止生成
+            </button>
+          </div>
+          <div class="streaming-content">
+            <div class="outline-text rich-text" v-html="asHtml(streamingOutline)"></div>
+            <div class="streaming-indicator">
+              <span class="typing-cursor">▊</span>
+            </div>
+          </div>
+        </div>
         <div v-else class="outline-content">
           <div class="outline-header">
             <h2 class="section-title">章节大纲</h2>
-            <button type="button" class="btn-regenerate" :disabled="generatingOutline" @click="regenerateOutline">
+            <button type="button" class="btn-regenerate" :disabled="generatingOutline" @click="startStreamOutline">
               {{ generatingOutline ? '生成中...' : '重新生成' }}
             </button>
           </div>
-          <pre class="outline-text">{{ novel.chapterOutline }}</pre>
+          <div class="outline-text rich-text" v-html="asHtml(novel.chapterOutline)"></div>
         </div>
       </section>
 
       <!-- 章节写作 Tab -->
       <section v-show="activeTab === 'writing'" class="content-panel card">
-        <h2 class="section-title">章节列表</h2>
-        <div v-if="!chapters.length" class="hint">暂无章节</div>
+        <div class="writing-header">
+          <h2 class="section-title">章节列表</h2>
+          <button 
+            type="button" 
+            class="btn-add-chapter" 
+            @click="showAddChapterModal = true"
+            :disabled="!novel.structure">
+            <span>+</span>
+            添加章节
+          </button>
+        </div>
+        
+        <div v-if="!chapters.length" class="hint">暂无章节，点击「添加章节」开始创作</div>
         <ul v-else class="chapter-list">
-          <li v-for="ch in chapters" :key="ch.id" class="chapter-item">
+          <li v-for="ch in chapters" :key="ch.id" class="chapter-item" @click="openChapterDetail(ch)">
             <span class="num">第 {{ ch.chapterNumber }} 章</span>
             <span class="title">{{ ch.title || '（无标题）' }}</span>
-            <span class="status">{{ chapterStatusText(ch.status) }}</span>
+            <span class="status" :class="getStatusClass(ch.status)">
+              {{ chapterStatusText(ch.status) }}
+            </span>
+            <button 
+              v-if="ch.status === 0 || ch.status === 1"
+              type="button" 
+              class="btn-generate-chapter"
+              @click.stop="startStreamChapter(ch)"
+              :disabled="streamingChapters.has(ch.id)">
+              {{ streamingChapters.has(ch.id) ? '生成中...' : '生成内容' }}
+            </button>
           </li>
         </ul>
+
+        <!-- 从章节大纲创建章节内容 -->
+        <div v-if="outlineChapters.length" class="outline-chapter-section">
+          <h3 class="section-subtitle">从章节大纲创建</h3>
+          <ul class="outline-chapter-list">
+            <li 
+              v-for="oc in outlineChapters" 
+              :key="`outline-${oc.chapterNumber}`" 
+              class="outline-chapter-item">
+              <span class="num">第 {{ oc.chapterNumber }} 章</span>
+              <span class="title">{{ oc.title || '（无标题）' }}</span>
+              <span class="status" v-if="findChapterByNumber(oc.chapterNumber)">
+                已创建
+              </span>
+              <button
+                v-else
+                type="button"
+                class="btn-generate-chapter"
+                @click.stop="openCreateFromOutline(oc)">
+                创建章节内容
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 章节详情/编辑 Modal -->
+        <div v-if="selectedChapter" class="chapter-detail-modal" @click.self="closeChapterDetail">
+          <div class="chapter-detail-content">
+            <div class="chapter-detail-header">
+              <h3>第 {{ selectedChapter.chapterNumber }} 章 {{ selectedChapter.title || '（无标题）' }}</h3>
+              <button type="button" class="btn-close" @click="closeChapterDetail">×</button>
+            </div>
+            <div class="chapter-detail-body">
+              <!-- 正在生成中（状态为0或1，且有流式内容） -->
+              <div v-if="(selectedChapter.status === 0 || selectedChapter.status === 1) && streamingContent[selectedChapter.id]" class="chapter-generating">
+                <div class="chapter-detail-header">
+                  <h3>正在生成章节内容...</h3>
+                  <button type="button" class="btn-stop" @click="stopStreamChapter(selectedChapter)">
+                    <span>⏹</span>
+                    停止生成
+                  </button>
+                </div>
+                <div class="streaming-content">
+                  <div class="chapter-text rich-text" v-html="asHtml(streamingContent[selectedChapter.id])"></div>
+                  <div class="streaming-indicator">
+                    <span class="typing-cursor">▊</span>
+                  </div>
+                </div>
+              </div>
+              <!-- 待生成或生成中但无流式内容 -->
+              <div v-else-if="selectedChapter.status === 0 || selectedChapter.status === 1" class="generate-prompt">
+                <p>章节内容尚未生成</p>
+                <button 
+                  type="button" 
+                  class="btn-generate-in-modal"
+                  @click="startStreamChapter(selectedChapter)"
+                  :disabled="streamingChapters.has(selectedChapter.id)">
+                  {{ streamingChapters.has(selectedChapter.id) ? '生成中...' : '开始生成' }}
+                </button>
+              </div>
+              <!-- 已完成 -->
+              <div v-else class="chapter-content">
+                <div class="chapter-text rich-text" v-html="asHtml(selectedChapter.content || '（无内容）')"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 添加章节 Modal -->
+        <div v-if="showAddChapterModal" class="chapter-detail-modal" @click.self="showAddChapterModal = false">
+          <div class="chapter-detail-content">
+            <div class="chapter-detail-header">
+              <h3>添加新章节</h3>
+              <button type="button" class="btn-close" @click="showAddChapterModal = false">×</button>
+            </div>
+            <div class="chapter-detail-body">
+              <div class="field">
+                <label class="label">章节序号</label>
+                <input 
+                  v-model.number="newChapter.chapterNumber" 
+                  type="number" 
+                  min="1" 
+                  placeholder="例如：1" />
+              </div>
+              <div class="field">
+                <label class="label">章节标题</label>
+                <input 
+                  v-model="newChapter.title" 
+                  placeholder="例如：初入江湖" />
+              </div>
+              <div class="field">
+                <label class="label">章节摘要（可选）</label>
+                <textarea 
+                  v-model="newChapter.abstractContent" 
+                  rows="3"
+                  placeholder="简要描述本章的核心事件..."></textarea>
+              </div>
+              <div class="field">
+                <button 
+                  type="button" 
+                  class="btn-primary"
+                  @click="createChapter"
+                  :disabled="!newChapter.chapterNumber || !newChapter.title || creatingChapter">
+                  {{ creatingChapter ? '创建中...' : '创建章节' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- 导出 Tab -->
@@ -120,10 +280,12 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import * as novels from '../api/novels'
 import * as chaptersApi from '../api/chapters'
+import { connectWebSocket, disconnectWebSocket, getWebSocketClient } from '../utils/websocket'
+import { renderMarkdown } from '../utils/markdown'
 
 const route = useRoute()
 const id = computed(() => route.params.id)
@@ -134,6 +296,20 @@ const activeTab = ref('structure')
 const exporting = ref(false)
 const generatingStructure = ref(false)
 const generatingOutline = ref(false)
+const streamingStructure = ref('')
+const streamingOutline = ref('')
+
+// 章节写作相关
+const showAddChapterModal = ref(false)
+const selectedChapter = ref(null)
+const streamingChapters = ref(new Set())
+const streamingContent = ref({})
+const creatingChapter = ref(false)
+const newChapter = ref({
+  chapterNumber: null,
+  title: '',
+  abstractContent: ''
+})
 
 const projectMeta = computed(() => {
   if (!novel.value?.id) return { estimatedChapters: 100, wordsPerChapter: 3000 }
@@ -147,6 +323,28 @@ const projectMeta = computed(() => {
   } catch (_) {
     return { estimatedChapters: 100, wordsPerChapter: 3000 }
   }
+})
+
+// 富文本渲染辅助
+function asHtml(text) {
+  return renderMarkdown(text || '')
+}
+
+// 根据章节大纲解析章节标题
+const outlineChapters = computed(() => {
+  if (!novel.value?.chapterOutline) return []
+  const lines = novel.value.chapterOutline.split('\n')
+  const result = []
+  const chapterRegex = /^##\s*第(\d+)章\s*(.*)$/
+  for (const line of lines) {
+    const m = line.match(chapterRegex)
+    if (m) {
+      const num = parseInt(m[1], 10)
+      const title = m[2]?.trim().replace(/^\[|\]$/g, '') || ''
+      result.push({ chapterNumber: num, title })
+    }
+  }
+  return result
 })
 
 function load() {
@@ -163,72 +361,405 @@ function load() {
 
 watch(id, load, { immediate: true })
 
+// 监听 activeTab，切换到需要 WebSocket 的 tab 时初始化
+watch(activeTab, (newTab) => {
+  if (newTab === 'writing' || newTab === 'structure' || newTab === 'outline') {
+    initWebSocket()
+  }
+})
+
+onMounted(() => {
+  if (activeTab.value === 'writing' || activeTab.value === 'structure' || activeTab.value === 'outline') {
+    initWebSocket()
+  }
+})
+
+onUnmounted(() => {
+  if (wsSubscription) {
+    wsSubscription.unsubscribe()
+  }
+  disconnectWebSocket()
+})
+
 function chapterStatusText(s) {
   const map = { 0: '待处理', 1: '处理中', 2: '完成' }
   return map[s] ?? '未知'
 }
 
-async function startGenerateStructure() {
-  if (!id.value || generatingStructure.value) return
-  generatingStructure.value = true
+function getStatusClass(s) {
+  const map = { 0: 'status-pending', 1: 'status-processing', 2: 'status-completed' }
+  return map[s] || ''
+}
+
+function findChapterByNumber(chapterNumber) {
+  return chapters.value.find((c) => c.chapterNumber === chapterNumber)
+}
+
+// WebSocket 相关
+let wsSubscription = null
+
+async function initWebSocket() {
   try {
-    const updated = await novels.regenerateStructure(id.value, false)
-    novel.value = updated
-    // 如果使用异步生成，可以在这里添加轮询逻辑
+    await connectWebSocket()
   } catch (err) {
-    console.error('Failed to generate structure:', err)
-    alert('生成架构失败，请稍后重试')
-  } finally {
-    generatingStructure.value = false
+    console.error('Failed to connect WebSocket:', err)
   }
 }
 
-async function regenerateStructure() {
-  if (!id.value || generatingStructure.value) return
-  if (!confirm('确定要重新生成小说架构吗？这将覆盖现有的架构内容。')) return
-  generatingStructure.value = true
-  try {
-    const updated = await novels.regenerateStructure(id.value, false)
-    novel.value = updated
-  } catch (err) {
-    console.error('Failed to regenerate structure:', err)
-    alert('重新生成架构失败，请稍后重试')
-  } finally {
-    generatingStructure.value = false
+async function subscribeChapterStream(novelId, chapterNumber, chapterId) {
+  const client = getWebSocketClient()
+  if (!client || !client.connected) {
+    console.warn('WebSocket not connected')
+    return
   }
+
+  const topic = `/topic/chapters/${novelId}/${chapterNumber}`
+  
+  // 取消之前的订阅
+  if (wsSubscription) {
+    wsSubscription.unsubscribe()
+  }
+
+  wsSubscription = client.subscribe(topic, async (message) => {
+    const payload = JSON.parse(message.body)
+    const { type, content } = payload
+
+    if (type === 'delta') {
+      // 增量内容
+      if (!streamingContent.value[chapterId]) {
+        streamingContent.value[chapterId] = ''
+      }
+      streamingContent.value[chapterId] += content
+      
+      // 如果章节详情已打开，自动滚动到底部
+      if (selectedChapter.value && selectedChapter.value.id === chapterId) {
+        nextTick(() => {
+          const textEl = document.querySelector('.streaming-content .chapter-text')
+          if (textEl) {
+            textEl.scrollTop = textEl.scrollHeight
+          }
+        })
+      }
+    } else if (type === 'complete') {
+      // 生成完成
+      streamingChapters.value.delete(chapterId)
+      // 清除流式内容，等待加载最终内容
+      delete streamingContent.value[chapterId]
+      // 重新加载章节列表和详情
+      await loadChapters()
+      if (selectedChapter.value && selectedChapter.value.id === chapterId) {
+        await loadChapterDetail(chapterId)
+      }
+    } else if (type === 'stopped') {
+      // 生成已停止
+      streamingChapters.value.delete(chapterId)
+      // 保留已生成的内容，不清空
+      if (selectedChapter.value && selectedChapter.value.id === chapterId) {
+        // 更新章节状态
+        await loadChapterDetail(chapterId)
+      }
+    } else if (type === 'error') {
+      // 生成错误
+      streamingChapters.value.delete(chapterId)
+      delete streamingContent.value[chapterId]
+      alert('生成失败：' + (content || '未知错误'))
+    }
+  })
 }
 
-async function startGenerateOutline() {
-  if (!id.value || generatingOutline.value || !novel.value?.structure) return
-  generatingOutline.value = true
+function startStreamChapter(chapter) {
+  if (!novel.value || !chapter || streamingChapters.value.has(chapter.id)) return
+  
+  const client = getWebSocketClient()
+  if (!client || !client.connected) {
+    alert('WebSocket 未连接，请刷新页面重试')
+    return
+  }
+
+  streamingChapters.value.add(chapter.id)
+  streamingContent.value[chapter.id] = ''
+  
+  // 订阅流
+  subscribeChapterStream(novel.value.id, chapter.chapterNumber, chapter.id)
+  
+  // 打开章节详情
+  if (!selectedChapter.value || selectedChapter.value.id !== chapter.id) {
+    selectedChapter.value = { ...chapter }
+  }
+
+  // 发送生成请求
+  client.publish({
+    destination: '/app/chapters/stream',
+    body: JSON.stringify({
+      novelId: novel.value.id,
+      chapterNumber: chapter.chapterNumber,
+      title: chapter.title,
+      abstractContent: chapter.abstractContent
+    })
+  })
+}
+
+async function createChapter() {
+  if (!id.value || !newChapter.value.chapterNumber || !newChapter.value.title) return
+  if (creatingChapter.value) return
+
+  creatingChapter.value = true
   try {
-    const updated = await novels.generateChapterOutline(id.value, false)
-    novel.value = updated
+    // 先创建章节（通过API，但不生成内容）
+    // 注意：后端会创建章节并触发MQ生成，但我们可以通过WebSocket覆盖这个行为
+    const chapter = await chaptersApi.generateChapter({
+      novelId: id.value,
+      chapterNumber: newChapter.value.chapterNumber,
+      title: newChapter.value.title,
+      abstractContent: newChapter.value.abstractContent || undefined,
+      async: true // 使用异步MQ，但我们会立即通过WebSocket流式生成
+    })
+    
+    showAddChapterModal.value = false
+    newChapter.value = { chapterNumber: null, title: '', abstractContent: '' }
+    await loadChapters()
+    
+    // 找到刚创建的章节，自动开始流式生成
+    const createdChapter = chapters.value.find(c => c.id === chapter.id)
+    if (createdChapter) {
+      startStreamChapter(createdChapter)
+    }
   } catch (err) {
-    console.error('Failed to generate outline:', err)
-    if (err.response?.status === 400) {
-      alert('生成章节大纲失败：请先完成小说架构的生成')
+    console.error('Failed to create chapter:', err)
+    // 如果章节已存在，直接通过WebSocket生成
+    if (err.response?.status === 500 || err.message?.includes('already exists')) {
+      // 章节可能已存在，直接通过WebSocket触发流式生成
+      const chapter = {
+        id: null, // 后端会自动创建
+        novelId: id.value,
+        chapterNumber: newChapter.value.chapterNumber,
+        title: newChapter.value.title,
+        abstractContent: newChapter.value.abstractContent
+      }
+      showAddChapterModal.value = false
+      newChapter.value = { chapterNumber: null, title: '', abstractContent: '' }
+      await loadChapters()
+      startStreamChapter(chapter)
     } else {
-      alert('生成章节大纲失败，请稍后重试')
+      alert('创建章节失败，请稍后重试')
     }
   } finally {
-    generatingOutline.value = false
+    creatingChapter.value = false
   }
 }
 
-async function regenerateOutline() {
-  if (!id.value || generatingOutline.value) return
-  if (!confirm('确定要重新生成章节大纲吗？这将覆盖现有的大纲内容。')) return
-  generatingOutline.value = true
+async function loadChapters() {
+  if (!id.value) return
   try {
-    const updated = await novels.generateChapterOutline(id.value, false)
-    novel.value = updated
+    const chs = await chaptersApi.getByNovel(id.value)
+    chapters.value = chs || []
   } catch (err) {
-    console.error('Failed to regenerate outline:', err)
-    alert('重新生成大纲失败，请稍后重试')
-  } finally {
-    generatingOutline.value = false
+    console.error('Failed to load chapters:', err)
   }
+}
+
+async function loadChapterDetail(chapterId) {
+  try {
+    const chapter = await chaptersApi.getById(chapterId)
+    if (selectedChapter.value && selectedChapter.value.id === chapterId) {
+      selectedChapter.value = chapter
+    }
+  } catch (err) {
+    console.error('Failed to load chapter detail:', err)
+  }
+}
+
+function openChapterDetail(chapter) {
+  selectedChapter.value = { ...chapter }
+  // 如果正在生成，订阅流式内容
+  if (streamingChapters.value.has(chapter.id)) {
+    // 正在生成中，订阅流式更新
+    subscribeChapterStream(novel.value.id, chapter.chapterNumber, chapter.id)
+  } else if (chapter.status === 2 && chapter.content) {
+    // 已完成的章节，内容已存在，无需加载
+  } else {
+    // 加载章节详情
+    loadChapterDetail(chapter.id)
+  }
+}
+
+function closeChapterDetail() {
+  selectedChapter.value = null
+  if (wsSubscription) {
+    wsSubscription.unsubscribe()
+    wsSubscription = null
+  }
+}
+
+function openCreateFromOutline(oc) {
+  showAddChapterModal.value = true
+  newChapter.value.chapterNumber = oc.chapterNumber
+  newChapter.value.title = oc.title || ''
+  newChapter.value.abstractContent = ''
+}
+
+function stopStreamStructure() {
+  const client = getWebSocketClient()
+  if (!client || !client.connected) return
+  
+  client.publish({
+    destination: '/app/novels/stop',
+    body: JSON.stringify({
+      novelId: id.value,
+      streamType: 'structure'
+    })
+  })
+}
+
+function stopStreamOutline() {
+  const client = getWebSocketClient()
+  if (!client || !client.connected) return
+  
+  client.publish({
+    destination: '/app/novels/stop',
+    body: JSON.stringify({
+      novelId: id.value,
+      streamType: 'outline'
+    })
+  })
+}
+
+function stopStreamChapter(chapter) {
+  if (!chapter || !novel.value) return
+  
+  const client = getWebSocketClient()
+  if (!client || !client.connected) return
+  
+  client.publish({
+    destination: '/app/chapters/stop',
+    body: JSON.stringify({
+      novelId: novel.value.id,
+      chapterNumber: chapter.chapterNumber,
+      streamType: 'chapter'
+    })
+  })
+}
+
+function startStreamStructure() {
+  if (!id.value || generatingStructure.value) return
+  
+  const client = getWebSocketClient()
+  if (!client || !client.connected) {
+    alert('WebSocket 未连接，请刷新页面重试')
+    return
+  }
+
+  generatingStructure.value = true
+  streamingStructure.value = ''
+
+  const topic = `/topic/novels/${id.value}/structure`
+  let subscription = null
+
+  subscription = client.subscribe(topic, async (message) => {
+    const payload = JSON.parse(message.body)
+    const { type, content } = payload
+
+    if (type === 'delta') {
+      streamingStructure.value += content
+      // 自动滚动
+      nextTick(() => {
+        const textEl = document.querySelector('.structure-content .structure-text')
+        if (textEl) {
+          textEl.scrollTop = textEl.scrollHeight
+        }
+      })
+    } else if (type === 'complete') {
+      generatingStructure.value = false
+      streamingStructure.value = ''
+      await load()
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    } else if (type === 'stopped') {
+      generatingStructure.value = false
+      // 保留已生成的内容，不清空
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    } else if (type === 'error') {
+      generatingStructure.value = false
+      streamingStructure.value = ''
+      alert('生成失败：' + (content || '未知错误'))
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    }
+  })
+
+  // 发送生成请求
+  client.publish({
+    destination: '/app/novels/stream',
+    body: JSON.stringify({
+      novelId: id.value,
+      streamType: 'structure'
+    })
+  })
+}
+
+function startStreamOutline() {
+  if (!id.value || generatingOutline.value || !novel.value?.structure) return
+  
+  const client = getWebSocketClient()
+  if (!client || !client.connected) {
+    alert('WebSocket 未连接，请刷新页面重试')
+    return
+  }
+
+  generatingOutline.value = true
+  streamingOutline.value = ''
+
+  const topic = `/topic/novels/${id.value}/outline`
+  let subscription = null
+
+  subscription = client.subscribe(topic, async (message) => {
+    const payload = JSON.parse(message.body)
+    const { type, content } = payload
+
+    if (type === 'delta') {
+      streamingOutline.value += content
+      // 自动滚动
+      nextTick(() => {
+        const textEl = document.querySelector('.outline-content .outline-text')
+        if (textEl) {
+          textEl.scrollTop = textEl.scrollHeight
+        }
+      })
+    } else if (type === 'complete') {
+      generatingOutline.value = false
+      streamingOutline.value = ''
+      await load()
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    } else if (type === 'stopped') {
+      generatingOutline.value = false
+      // 保留已生成的内容，不清空
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    } else if (type === 'error') {
+      generatingOutline.value = false
+      streamingOutline.value = ''
+      alert('生成失败：' + (content || '未知错误'))
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    }
+  })
+
+  // 发送生成请求
+  client.publish({
+    destination: '/app/novels/stream',
+    body: JSON.stringify({
+      novelId: id.value,
+      streamType: 'outline'
+    })
+  })
 }
 
 function doExport(format) {
@@ -369,6 +900,24 @@ function doExport(format) {
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
+
+.btn-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #dc2626;
+  background: var(--bg-card);
+  border: 1px solid #dc2626;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-stop:hover {
+  background: #fee2e2;
+  color: #991b1b;
+}
 .btn-regenerate:hover:not(:disabled) {
   background: var(--accent-light);
 }
@@ -474,5 +1023,255 @@ function doExport(format) {
   color: var(--text-secondary);
   padding: 48px;
   text-align: center;
+}
+
+.writing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.btn-add-chapter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: white;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-add-chapter:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-add-chapter:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chapter-item {
+  cursor: pointer;
+  position: relative;
+}
+
+.chapter-item:hover {
+  background: var(--bg-hover);
+}
+
+.btn-generate-chapter {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-generate-chapter:hover:not(:disabled) {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-generate-chapter:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.status-pending {
+  color: #f59e0b;
+}
+
+.status-processing {
+  color: #3b82f6;
+}
+
+.status-completed {
+  color: #10b981;
+}
+
+.chapter-detail-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.chapter-detail-content {
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.chapter-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.chapter-detail-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.btn-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.chapter-detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.chapter-generating {
+  position: relative;
+}
+
+.streaming-content {
+  position: relative;
+}
+
+.chapter-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text-primary);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  margin: 0;
+}
+
+.streaming-indicator {
+  display: inline-block;
+  margin-left: 4px;
+}
+
+.typing-cursor {
+  color: var(--accent);
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.generate-prompt {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-secondary);
+}
+
+.btn-generate-in-modal {
+  margin-top: 16px;
+  padding: 12px 24px;
+  font-size: 14px;
+  color: white;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-generate-in-modal:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-generate-in-modal:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chapter-content {
+  margin-top: 16px;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field .label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btn-primary {
+  padding: 10px 20px;
+  font-size: 14px;
+  color: white;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

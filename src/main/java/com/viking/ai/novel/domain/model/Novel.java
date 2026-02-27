@@ -37,6 +37,14 @@ public class Novel {
     @Column(name = "chapter_outline", columnDefinition = "LONGTEXT")
     private String chapterOutline;
     
+    @Column(name = "chapter_number")
+    @Builder.Default
+    private Integer chapterNumber = 0; // 总章数
+    
+    @Column(name = "chapter_word_count")
+    @Builder.Default
+    private Integer chapterWordCount = 0; // 章节字数
+    
     @Column(name = "status")
     @Builder.Default
     private Integer status = 0; // 0: 草稿，1: 发布中，2: 已完成
