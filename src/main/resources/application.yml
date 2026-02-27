@@ -23,21 +23,6 @@ qdrant:
   port: 6333
   collection-name: novel-chapters
 
-# LangChain4j Configuration（默认使用 DeepSeek 作为对话大模型）
-langchain4j:
-  open-ai:
-    chat-model:
-      api-key: ${DEEPSEEK_API_KEY:${OPENAI_API_KEY:your-api-key}}
-      base-url: https://api.deepseek.com
-      model-name: deepseek-chat
-      temperature: 0.7
-      timeout: 60s
-  embedding-model:
-    open-ai:
-      api-key: ${OPENAI_API_KEY:your-api-key}
-      base-url: https://api.openai.com/v1
-      model-name: text-embedding-3-small
-
 # Server Configuration
 server:
   port: 8080
@@ -57,7 +42,7 @@ logging:
 # RocketMQ（AI 异步生成；需显式开启并配置 name-server）
 rocketmq:
   enabled: ${ROCKETMQ_ENABLED:true}
-  name-server: ${ROCKETMQ_NAME_SERVER:192.168.31.42:9876}
+  name-server: ${ROCKETMQ_NAME_SERVER:10.10.137.3:9876}
   producer:
     group: ai-novel-producer
     send-message-timeout: 30000

@@ -1,7 +1,10 @@
 package com.viking.ai.novel.infrastructure.ai;
 
+import com.viking.ai.novel.domain.model.UserModel;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,28 +21,23 @@ import java.util.List;
 @Slf4j
 public class AiModelService {
     
-    @Value("${langchain4j.open-ai.chat-model.api-key:}")
-    private String apiKey;
-    
-    @Value("${langchain4j.open-ai.chat-model.base-url:https://api.openai.com/v1}")
-    private String baseUrl;
-    
-    @Value("${langchain4j.open-ai.chat-model.model-name:gpt-4}")
-    private String modelName;
-    
     @Value("${langchain4j.open-ai.chat-model.temperature:0.7}")
     private double temperature;
-    
-    /**
-     * 获取默认的 ChatLanguageModel
-     */
-    public ChatLanguageModel getDefaultChatModel() {
+
+    public ChatLanguageModel getChatModel(UserModel model) {
         return OpenAiChatModel.builder()
-                .apiKey(apiKey)
-                .baseUrl(baseUrl)
-                .modelName(modelName)
+                .apiKey(model.getApiKey())
+                .baseUrl(model.getModelUrl())
+                .modelName(model.getModelName())
                 .temperature(temperature)
                 .timeout(Duration.ofSeconds(60))
+                .build();
+    }
+
+    public EmbeddingModel getEmbeddingModel(UserModel model) {
+        return OpenAiEmbeddingModel.builder()
+                .apiKey(model.getApiKey())
+                .modelName(model.getModelName())
                 .build();
     }
     
@@ -59,23 +57,52 @@ public class AiModelService {
     /**
      * 生成小说结构
      */
-    public String generateNovelStructure(String title, String genre, String settingText) {
-        ChatLanguageModel chatModel = getDefaultChatModel();
+    public String generateNovelStructure(String title, String genre, String settingText, UserModel model) {
+        ChatLanguageModel chatModel = getChatModel(model);
         
         String prompt = String.format("""
-            请根据以下信息生成一部小说的详细结构：
+            你是一位专业的小说创作顾问。请根据以下信息生成一部小说的详细架构：
             
+            【基本信息】
             标题：%s
             题材：%s
             世界观设定：%s
             
-            请生成包含以下内容的小说结构：
-            1. 主要角色介绍
-            2. 故事背景
-            3. 主要情节线
-            4. 章节大纲（至少10章，每章包含标题和简要内容）
+            【要求】
+            请生成一份完整的小说架构，包含以下部分：
             
-            请以结构化的格式输出，便于后续章节生成。
+            1. 【核心种子】
+                - 故事的核心冲突或主题
+                - 故事的独特卖点
+            
+            2. 【主要角色】
+                - 主角：姓名、性格特点、背景、目标与动机
+                - 重要配角：姓名、性格特点、与主角的关系
+                - 反派（如有）：姓名、性格特点、动机与目标
+            
+            3. 【世界观设定】
+                - 时代背景
+                - 地理环境
+                - 社会结构
+                - 特殊规则或设定（如魔法、科技等）
+            
+            4. 【故事结构】
+                - 开端：故事如何开始，主角的初始状态
+                - 发展：主要冲突的展开，角色关系的发展
+                - 高潮：故事的关键转折点或最大冲突
+                - 结局：故事的收尾方式
+            
+            5. 【主要情节线】
+                - 主线：故事的核心情节发展
+                - 支线：次要情节线（至少2-3条）
+                - 伏笔：需要埋下的重要线索
+            
+            6. 【章节规划】
+                - 至少规划15-20章
+                - 每章包含：章节序号、章节标题、章节核心事件、章节作用（推进主线/支线/人物塑造等）
+            
+            【输出格式】
+            请使用清晰的分段和标题，确保结构清晰、内容详实，便于后续章节创作。
             """, title, genre, settingText);
         
         try {
@@ -89,12 +116,73 @@ public class AiModelService {
     }
     
     /**
+     * 生成章节大纲
+     */
+    public String generateChapterOutline(String title, String genre, String settingText, String structure, UserModel model) {
+        ChatLanguageModel chatModel = getChatModel(model);
+        
+        String prompt = String.format("""
+            你是一位专业的小说创作顾问。请根据以下信息生成详细的章节大纲：
+            
+            【基本信息】
+            小说标题：%s
+            题材：%s
+            世界观设定：%s
+            
+            【小说架构】
+            %s
+            
+            【要求】
+            请生成一份完整的章节大纲，要求：
+            
+            1. 根据小说架构中的章节规划，为每一章生成详细大纲
+            2. 每章大纲应包含：
+               - 章节序号和标题
+               - 章节核心事件（主要发生什么）
+               - 出场角色
+               - 关键对话或场景要点
+               - 章节目标（推进主线/支线/人物塑造/世界观展示等）
+               - 章节结尾的悬念或转折点
+               - 与前后章的衔接点
+            
+            3. 确保章节之间的逻辑连贯性
+            4. 合理分配情节节奏（紧张/舒缓交替）
+            5. 确保重要伏笔和线索的埋设时机
+            
+            【输出格式】
+            请按照以下格式输出：
+            
+            ## 第X章 [章节标题]
+            - **核心事件**：[描述]
+            - **出场角色**：[角色列表]
+            - **关键场景**：[重要场景描述]
+            - **章节目标**：[说明]
+            - **章节结尾**：[悬念或转折]
+            - **衔接点**：[与前后章的联系]
+            
+            【注意事项】
+            - 章节数量应与架构中的规划一致
+            - 每章大纲应详细但不过于冗长
+            - 确保整体故事节奏的合理性
+            """, title, genre, settingText, structure != null ? structure : "无");
+        
+        try {
+            String response = chatModel.generate(prompt);
+            log.info("Generated chapter outline for novel: {}", title);
+            return response;
+        } catch (Exception e) {
+            log.error("Error generating chapter outline", e);
+            throw new RuntimeException("Failed to generate chapter outline", e);
+        }
+    }
+    
+    /**
      * 生成章节内容
      */
     public String generateChapterContent(String novelTitle, String genre, String settingText, 
                                          String structure, String chapterTitle, String chapterAbstract,
-                                         List<String> previousChapters) {
-        ChatLanguageModel chatModel = getDefaultChatModel();
+                                         List<String> previousChapters, UserModel model) {
+        ChatLanguageModel chatModel = getChatModel(model);
         
         StringBuilder contextBuilder = new StringBuilder();
         if (previousChapters != null && !previousChapters.isEmpty()) {
@@ -139,8 +227,8 @@ public class AiModelService {
     /**
      * 生成章节摘要
      */
-    public String generateChapterAbstract(String chapterContent) {
-        ChatLanguageModel chatModel = getDefaultChatModel();
+    public String generateChapterAbstract(String chapterContent, UserModel model) {
+        ChatLanguageModel chatModel = getChatModel(model);
         
         String prompt = String.format("""
             请为以下章节内容生成一个简洁的摘要（不超过200字）：

@@ -16,8 +16,9 @@ create TABLE user_models
     user_id    BIGINT       NOT NULL,
     model_name VARCHAR(255) NOT NULL, -- 模型名称
     model_url  VARCHAR(255) NOT NULL, -- 模型URL
-    model_type VARCHAR(255) NOT NULL, -- 模型类型
+    model_type VARCHAR(255) NOT NULL, -- 模型类型（如 DeepSeek, OpenAI 等）
     api_key    VARCHAR(255) NOT NULL, -- API密钥
+    type int(1) DEFAULT 0, -- 0: 对话模型，1: 嵌入模型
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -42,14 +43,15 @@ create TABLE basic_config(
 -- 小说信息表
 CREATE TABLE novel
 (
-    id           BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id      BIGINT       NOT NULL,
-    title        VARCHAR(255) NOT NULL, -- 小说标题
-    genre        VARCHAR(50),           -- 题材（玄幻、都市等）
-    setting_text LONGTEXT,              -- 世界观设定（用于RAG入库）
-    structure    LONGTEXT,              -- 小说结构
-    status       int(1) DEFAULT 0, -- 0: 草稿，1: 发布中，2: 已完成
-    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id             BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id        BIGINT       NOT NULL,
+    title          VARCHAR(255) NOT NULL, -- 小说标题
+    genre          VARCHAR(50),           -- 题材（玄幻、都市等）
+    setting_text   LONGTEXT,              -- 世界观设定（用于RAG入库）
+    structure      LONGTEXT,              -- 小说结构
+    chapter_outline LONGTEXT,            -- 章节大纲
+    status         int(1) DEFAULT 0,     -- 0: 草稿，1: 发布中，2: 已完成
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 小说向量关联表

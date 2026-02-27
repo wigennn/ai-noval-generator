@@ -27,4 +27,9 @@ public class UserModelRepositoryImpl implements UserModelRepository {
     public List<UserModel> findByUserId(Long userId) {
         return jpaUserModelRepository.findByUserId(userId);
     }
+    
+    @Override
+    public Optional<UserModel> findByUserIdAndType(Long userId, Integer type) {
+        return jpaUserModelRepository.findByUserIdAndType(userId, type);
+    }
 }

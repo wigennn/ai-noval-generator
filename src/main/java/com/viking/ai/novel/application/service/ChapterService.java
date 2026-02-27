@@ -3,10 +3,13 @@ package com.viking.ai.novel.application.service;
 import com.viking.ai.novel.domain.model.Chapter;
 import com.viking.ai.novel.domain.model.Novel;
 import com.viking.ai.novel.domain.model.Task;
+import com.viking.ai.novel.domain.model.UserModel;
 import com.viking.ai.novel.domain.repository.ChapterRepository;
 import com.viking.ai.novel.domain.repository.NovelRepository;
 import com.viking.ai.novel.domain.repository.TaskRepository;
+import com.viking.ai.novel.domain.repository.UserModelRepository;
 import com.viking.ai.novel.infrastructure.ai.QdrantService;
+import com.viking.ai.novel.infrastructure.constants.ModelTypeEnum;
 import com.viking.ai.novel.infrastructure.mq.AiGenerateProducer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,19 +32,22 @@ public class ChapterService {
     private final ChapterGenerationTaskService chapterGenerationTaskService;
     private final QdrantService qdrantService;
     private final AiGenerateProducer aiGenerateProducer;
+    private final UserModelRepository userModelRepository;
 
     public ChapterService(ChapterRepository chapterRepository,
                           NovelRepository novelRepository,
                           TaskRepository taskRepository,
                           ChapterGenerationTaskService chapterGenerationTaskService,
                           QdrantService qdrantService,
-                          @Autowired(required = false) AiGenerateProducer aiGenerateProducer) {
+                          @Autowired(required = false) AiGenerateProducer aiGenerateProducer,
+                          UserModelRepository userModelRepository) {
         this.chapterRepository = chapterRepository;
         this.novelRepository = novelRepository;
         this.taskRepository = taskRepository;
         this.chapterGenerationTaskService = chapterGenerationTaskService;
         this.qdrantService = qdrantService;
         this.aiGenerateProducer = aiGenerateProducer;
+        this.userModelRepository = userModelRepository;
     }
 
     /**
@@ -104,6 +110,10 @@ public class ChapterService {
     public Chapter updateChapter(Long id, String title, String content) {
         Chapter chapter = chapterRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Chapter not found: " + id));
+        Novel novel = novelRepository.findById(chapter.getNovelId())
+                .orElseThrow(() -> new RuntimeException("Novel not found: " + chapter.getNovelId()));
+        UserModel model = userModelRepository.findByUserIdAndType(novel.getUserId(), ModelTypeEnum.VECTOR.getType())
+                .orElseThrow(() -> new RuntimeException("User model not found: " + novel.getUserId()));
         
         if (title != null) {
             chapter.setTitle(title);
@@ -114,7 +124,7 @@ public class ChapterService {
             if (chapter.getVectorId() != null) {
                 qdrantService.deleteVector(chapter.getVectorId());
             }
-            String vectorId = qdrantService.storeChapter(chapter.getId().toString(), content);
+            String vectorId = qdrantService.storeChapter(chapter.getId().toString(), content, model);
             chapter.setVectorId(vectorId);
         }
         

@@ -3,11 +3,14 @@ package com.viking.ai.novel.application.service;
 import com.viking.ai.novel.domain.model.Chapter;
 import com.viking.ai.novel.domain.model.Novel;
 import com.viking.ai.novel.domain.model.Task;
+import com.viking.ai.novel.domain.model.UserModel;
 import com.viking.ai.novel.domain.repository.ChapterRepository;
 import com.viking.ai.novel.domain.repository.NovelRepository;
 import com.viking.ai.novel.domain.repository.TaskRepository;
+import com.viking.ai.novel.domain.repository.UserModelRepository;
 import com.viking.ai.novel.infrastructure.ai.AiModelService;
 import com.viking.ai.novel.infrastructure.ai.QdrantService;
+import com.viking.ai.novel.infrastructure.constants.ModelTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,7 @@ public class ChapterGenerationTaskService {
     private final TaskRepository taskRepository;
     private final AiModelService aiModelService;
     private final QdrantService qdrantService;
+    private final UserModelRepository userModelRepository;
 
     /**
      * 执行章节内容生成（同步逻辑，供实时调用或 MQ 消费者调用）
@@ -41,6 +45,8 @@ public class ChapterGenerationTaskService {
                 .orElseThrow(() -> new RuntimeException("Chapter not found: " + chapterId));
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found: " + taskId));
+        UserModel model = userModelRepository.findByUserIdAndType(novel.getUserId(), ModelTypeEnum.NORMAL.getType())
+                .orElseThrow(() -> new RuntimeException("User model not found: " + novel.getUserId()));
 
         task.setTaskStatus(1);
         taskRepository.save(task);
@@ -65,14 +71,15 @@ public class ChapterGenerationTaskService {
                     novel.getStructure(),
                     chapter.getTitle(),
                     chapter.getAbstractContent(),
-                    previousAbstracts
+                    previousAbstracts,
+                    model
             );
             chapter.setContent(content);
             if (chapter.getAbstractContent() == null || chapter.getAbstractContent().isEmpty()) {
-                String abstractContent = aiModelService.generateChapterAbstract(content);
+                String abstractContent = aiModelService.generateChapterAbstract(content, model);
                 chapter.setAbstractContent(abstractContent);
             }
-            String vectorId = qdrantService.storeChapter(chapter.getId().toString(), content);
+            String vectorId = qdrantService.storeChapter(chapter.getId().toString(), content, model);
             chapter.setVectorId(vectorId);
             chapter.setStatus(2);
             chapterRepository.save(chapter);

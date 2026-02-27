@@ -36,20 +36,49 @@
           <div class="generate-icon">✨</div>
           <h2 class="generate-title">开始生成小说架构</h2>
           <p class="generate-desc">AI 将基于作品创作法，为你生成核心种子、角色体系、世界观和情节架构</p>
-          <button type="button" class="btn-generate" @click="startGenerateStructure">
+          <button type="button" class="btn-generate" :disabled="generatingStructure" @click="startGenerateStructure">
             <span class="btn-play">▷</span>
-            开始生成架构
+            {{ generatingStructure ? '生成中...' : '开始生成架构' }}
           </button>
         </div>
         <div v-else class="structure-content">
-          <h2 class="section-title">小说结构</h2>
+          <div class="structure-header">
+            <h2 class="section-title">小说结构</h2>
+            <button type="button" class="btn-regenerate" :disabled="generatingStructure" @click="regenerateStructure">
+              {{ generatingStructure ? '生成中...' : '重新生成' }}
+            </button>
+          </div>
           <pre class="structure-text">{{ novel.structure }}</pre>
         </div>
       </section>
 
       <!-- 章节大纲 Tab -->
       <section v-show="activeTab === 'outline'" class="content-panel card">
-        <p class="hint">章节大纲内容（待实现）</p>
+        <div v-if="!novel.chapterOutline" class="generate-block">
+          <div class="generate-icon">📋</div>
+          <h2 class="generate-title">开始生成章节大纲</h2>
+          <p class="generate-desc">AI 将基于小说架构，为你生成详细的章节大纲，包含每章的核心事件、出场角色和关键场景</p>
+          <div v-if="!novel.structure" class="warning-box">
+            <p>⚠️ 请先完成「小说架构」的生成，才能生成章节大纲</p>
+          </div>
+          <button 
+            type="button" 
+            class="btn-generate" 
+            :disabled="generatingOutline || !novel.structure" 
+            @click="startGenerateOutline">
+            <span class="btn-play">▷</span>
+            {{ generatingOutline ? '生成中...' : '开始生成大纲' }}
+          </button>
+        </div>
+        <div v-else class="outline-content">
+          <div class="outline-header">
+            <h2 class="section-title">章节大纲</h2>
+            <button type="button" class="btn-regenerate" :disabled="generatingOutline" @click="regenerateOutline">
+              {{ generatingOutline ? '生成中...' : '重新生成' }}
+            </button>
+          </div>
+          <pre class="outline-text">{{ novel.chapterOutline }}</pre>
+        </div>
       </section>
 
       <!-- 章节写作 Tab -->
@@ -103,6 +132,8 @@ const loading = ref(false)
 const chapters = ref([])
 const activeTab = ref('structure')
 const exporting = ref(false)
+const generatingStructure = ref(false)
+const generatingOutline = ref(false)
 
 const projectMeta = computed(() => {
   if (!novel.value?.id) return { estimatedChapters: 100, wordsPerChapter: 3000 }
@@ -137,9 +168,67 @@ function chapterStatusText(s) {
   return map[s] ?? '未知'
 }
 
-function startGenerateStructure() {
-  // 后端已有异步生成结构逻辑，这里仅提示或轮询
-  // 实际可调用接口或轮询 novel 的 structure 字段
+async function startGenerateStructure() {
+  if (!id.value || generatingStructure.value) return
+  generatingStructure.value = true
+  try {
+    const updated = await novels.regenerateStructure(id.value, false)
+    novel.value = updated
+    // 如果使用异步生成，可以在这里添加轮询逻辑
+  } catch (err) {
+    console.error('Failed to generate structure:', err)
+    alert('生成架构失败，请稍后重试')
+  } finally {
+    generatingStructure.value = false
+  }
+}
+
+async function regenerateStructure() {
+  if (!id.value || generatingStructure.value) return
+  if (!confirm('确定要重新生成小说架构吗？这将覆盖现有的架构内容。')) return
+  generatingStructure.value = true
+  try {
+    const updated = await novels.regenerateStructure(id.value, false)
+    novel.value = updated
+  } catch (err) {
+    console.error('Failed to regenerate structure:', err)
+    alert('重新生成架构失败，请稍后重试')
+  } finally {
+    generatingStructure.value = false
+  }
+}
+
+async function startGenerateOutline() {
+  if (!id.value || generatingOutline.value || !novel.value?.structure) return
+  generatingOutline.value = true
+  try {
+    const updated = await novels.generateChapterOutline(id.value, false)
+    novel.value = updated
+  } catch (err) {
+    console.error('Failed to generate outline:', err)
+    if (err.response?.status === 400) {
+      alert('生成章节大纲失败：请先完成小说架构的生成')
+    } else {
+      alert('生成章节大纲失败，请稍后重试')
+    }
+  } finally {
+    generatingOutline.value = false
+  }
+}
+
+async function regenerateOutline() {
+  if (!id.value || generatingOutline.value) return
+  if (!confirm('确定要重新生成章节大纲吗？这将覆盖现有的大纲内容。')) return
+  generatingOutline.value = true
+  try {
+    const updated = await novels.generateChapterOutline(id.value, false)
+    novel.value = updated
+  } catch (err) {
+    console.error('Failed to regenerate outline:', err)
+    alert('重新生成大纲失败，请稍后重试')
+  } finally {
+    generatingOutline.value = false
+  }
 }
 
 function doExport(format) {
@@ -264,14 +353,55 @@ function doExport(format) {
 .btn-play {
   font-size: 14px;
 }
-.structure-text {
+.structure-header,
+.outline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.btn-regenerate {
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--accent);
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.btn-regenerate:hover:not(:disabled) {
+  background: var(--accent-light);
+}
+.btn-regenerate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.structure-text,
+.outline-text {
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.6;
-  max-height: 400px;
+  max-height: 500px;
   overflow: auto;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+.warning-box {
+  padding: 12px 16px;
+  margin: 16px auto 24px;
+  max-width: 400px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: #856404;
+}
+.btn-generate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .section-title {
   font-size: 16px;

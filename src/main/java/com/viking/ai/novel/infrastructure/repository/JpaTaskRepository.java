@@ -10,4 +10,5 @@ import java.util.List;
 public interface JpaTaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByTaskTypeAndTaskStatus(String taskType, Integer taskStatus);
     List<Task> findByTaskRelationId(Long taskRelationId);
+    List<Task> findByTaskStatusIn(List<Integer> statuses);
 }

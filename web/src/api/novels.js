@@ -21,6 +21,24 @@ export function deleteNovel(id) {
 }
 
 /**
+ * 重新生成小说架构（async: true=异步 MQ 生成，false=实时生成）
+ */
+export function regenerateStructure(novelId, async = false) {
+  return api.post(`/novels/${novelId}/regenerate-structure`, null, {
+    params: { async }
+  }).then((r) => r.data)
+}
+
+/**
+ * 生成章节大纲（async: true=异步 MQ 生成，false=实时生成）
+ */
+export function generateChapterOutline(novelId, async = false) {
+  return api.post(`/novels/${novelId}/generate-outline`, null, {
+    params: { async }
+  }).then((r) => r.data)
+}
+
+/**
  * 导出小说章节（format: txt | md | docx），返回 Blob，需自行触发下载
  */
 export function exportNovel(novelId, format = 'txt') {

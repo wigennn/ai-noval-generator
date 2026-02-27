@@ -34,6 +34,10 @@ public class UserModel {
     @Column(name = "api_key", nullable = false)
     private String apiKey;
     
+    @Column(name = "type")
+    @Builder.Default
+    private Integer type = 0; // 0: 对话模型，1: 嵌入模型
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     

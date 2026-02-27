@@ -11,14 +11,11 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class NovelDTO {
+public class TaskDTO {
     private Long id;
-    private Long userId;
-    private String title;
-    private String genre;
-    private String settingText;
-    private String structure;
-    private String chapterOutline;
-    private Integer status;
+    private String taskName;
+    private String taskType;
+    private Long taskRelationId;
+    private Integer taskStatus; // 0: 待处理，1: 处理中，2: 处理完成
     private LocalDateTime createdAt;
 }

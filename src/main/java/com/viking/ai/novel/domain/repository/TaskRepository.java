@@ -10,4 +10,5 @@ public interface TaskRepository {
     Optional<Task> findById(Long id);
     List<Task> findByTaskTypeAndTaskStatus(String taskType, Integer taskStatus);
     List<Task> findByTaskRelationId(Long taskRelationId);
+    List<Task> findByTaskStatusIn(List<Integer> statuses);
 }

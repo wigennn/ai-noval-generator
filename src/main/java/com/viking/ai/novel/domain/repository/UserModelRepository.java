@@ -9,4 +9,5 @@ public interface UserModelRepository {
     UserModel save(UserModel userModel);
     Optional<UserModel> findById(Long id);
     List<UserModel> findByUserId(Long userId);
+    Optional<UserModel> findByUserIdAndType(Long userId, Integer type);
 }

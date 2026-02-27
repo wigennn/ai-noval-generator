@@ -22,6 +22,7 @@
       </div>
 
       <div class="header-right">
+        <TaskProgress />
         <span v-if="showApiWarning" class="api-warning">
           <span class="api-warning-icon">⚠</span>
           请配置 API Key
@@ -57,6 +58,7 @@ import { ref, computed, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import CreateProjectModal from './components/CreateProjectModal.vue'
 import ApiSettingsModal from './components/ApiSettingsModal.vue'
+import TaskProgress from './components/TaskProgress.vue'
 import { useAuth } from './store/auth'
 
 const route = useRoute()

@@ -59,9 +59,9 @@ public class NovelService {
         taskRepository.save(task);
 
         if (async && aiGenerateProducer != null) {
-            aiGenerateProducer.sendNovelStructure(novel.getId(), task.getId());
+            aiGenerateProducer.sendNovelStructure(novel.getId(), task.getId(), userId);
         } else {
-            novelGenerationTaskService.doGenerateNovelStructure(novel.getId(), task.getId());
+            novelGenerationTaskService.doGenerateNovelStructure(novel.getId(), task.getId(), userId);
         }
         return novel;
     }
@@ -107,5 +107,59 @@ public class NovelService {
     @Transactional
     public void deleteNovel(Long id) {
         novelRepository.deleteById(id);
+    }
+    
+    /**
+     * 重新生成小说架构
+     * @param async true=通过 MQ 异步生成，false=同步生成（阻塞至完成）
+     */
+    @Transactional
+    public Novel regenerateNovelStructure(Long novelId, boolean async) {
+        Novel novel = novelRepository.findById(novelId)
+                .orElseThrow(() -> new RuntimeException("Novel not found: " + novelId));
+        
+        Task task = Task.builder()
+                .taskName("重新生成小说结构")
+                .taskType("GENERATE_NOVEL_STRUCTURE")
+                .taskRelationId(novel.getId())
+                .taskStatus(0)
+                .build();
+        taskRepository.save(task);
+        
+        if (async && aiGenerateProducer != null) {
+            aiGenerateProducer.sendNovelStructure(novel.getId(), task.getId(), novel.getUserId());
+        } else {
+            novelGenerationTaskService.doGenerateNovelStructure(novel.getId(), task.getId(), novel.getUserId());
+        }
+        return novel;
+    }
+    
+    /**
+     * 生成章节大纲
+     * @param async true=通过 MQ 异步生成，false=同步生成（阻塞至完成）
+     */
+    @Transactional
+    public Novel generateChapterOutline(Long novelId, boolean async) {
+        Novel novel = novelRepository.findById(novelId)
+                .orElseThrow(() -> new RuntimeException("Novel not found: " + novelId));
+        
+        if (novel.getStructure() == null || novel.getStructure().isEmpty()) {
+            throw new RuntimeException("Novel structure is required before generating chapter outline");
+        }
+        
+        Task task = Task.builder()
+                .taskName("生成章节大纲")
+                .taskType("GENERATE_CHAPTER_OUTLINE")
+                .taskRelationId(novel.getId())
+                .taskStatus(0)
+                .build();
+        taskRepository.save(task);
+        
+        if (async && aiGenerateProducer != null) {
+            aiGenerateProducer.sendChapterOutline(novel.getId(), task.getId());
+        } else {
+            novelGenerationTaskService.doGenerateChapterOutline(novel.getId(), task.getId());
+        }
+        return novel;
     }
 }

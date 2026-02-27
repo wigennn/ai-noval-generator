@@ -34,6 +34,9 @@ public class Novel {
     @Column(name = "structure", columnDefinition = "LONGTEXT")
     private String structure;
     
+    @Column(name = "chapter_outline", columnDefinition = "LONGTEXT")
+    private String chapterOutline;
+    
     @Column(name = "status")
     @Builder.Default
     private Integer status = 0; // 0: 草稿，1: 发布中，2: 已完成

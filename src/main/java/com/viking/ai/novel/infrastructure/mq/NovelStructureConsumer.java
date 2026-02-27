@@ -26,6 +26,6 @@ public class NovelStructureConsumer implements RocketMQListener<NovelStructureMe
     @Override
     public void onMessage(NovelStructureMessage message) {
         log.info("Consume novel structure task: novelId={}, taskId={}", message.getNovelId(), message.getTaskId());
-        novelGenerationTaskService.doGenerateNovelStructure(message.getNovelId(), message.getTaskId());
+        novelGenerationTaskService.doGenerateNovelStructure(message.getNovelId(), message.getTaskId(), message.getUserId());
     }
 }

@@ -127,4 +127,42 @@ public class NovelController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+    
+    /**
+     * 重新生成小说架构
+     */
+    @PostMapping("/{id}/regenerate-structure")
+    public ResponseEntity<NovelDTO> regenerateStructure(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean async) {
+        try {
+            Novel novel = novelService.regenerateNovelStructure(id, async);
+            return ResponseEntity.ok(novelMapper.toDTO(novel));
+        } catch (RuntimeException e) {
+            log.error("Error regenerating novel structure", e);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("Error regenerating novel structure", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    /**
+     * 生成章节大纲
+     */
+    @PostMapping("/{id}/generate-outline")
+    public ResponseEntity<NovelDTO> generateChapterOutline(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean async) {
+        try {
+            Novel novel = novelService.generateChapterOutline(id, async);
+            return ResponseEntity.ok(novelMapper.toDTO(novel));
+        } catch (RuntimeException e) {
+            log.error("Error generating chapter outline", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (Exception e) {
+            log.error("Error generating chapter outline", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 }

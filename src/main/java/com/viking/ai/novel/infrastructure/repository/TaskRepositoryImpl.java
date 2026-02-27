@@ -32,4 +32,9 @@ public class TaskRepositoryImpl implements TaskRepository {
     public List<Task> findByTaskRelationId(Long taskRelationId) {
         return jpaTaskRepository.findByTaskRelationId(taskRelationId);
     }
+    
+    @Override
+    public List<Task> findByTaskStatusIn(List<Integer> statuses) {
+        return jpaTaskRepository.findByTaskStatusIn(statuses);
+    }
 }

@@ -1,5 +1,6 @@
 package com.viking.ai.novel.infrastructure.ai;
 
+import com.viking.ai.novel.domain.model.UserModel;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -26,10 +27,8 @@ public class QdrantService {
     
     @Value("${qdrant.collection-name:novel-chapters}")
     private String collectionName;
-    
-    private final EmbeddingModel embeddingModel;
-    
     private EmbeddingStore<TextSegment> embeddingStore;
+    private AiModelService aiModelService;
     
     private EmbeddingStore<TextSegment> getEmbeddingStore() {
         if (embeddingStore == null) {
@@ -45,7 +44,9 @@ public class QdrantService {
     /**
      * 存储文本到向量数据库，返回向量ID
      */
-    public String storeText(String content) {
+    public String storeText(String content, UserModel model) {
+        EmbeddingModel embeddingModel = aiModelService.getEmbeddingModel(model);
+
         TextSegment segment = TextSegment.from(content);
         Embedding embedding = embeddingModel.embed(segment).content();
         String id = getEmbeddingStore().add(embedding);
@@ -56,8 +57,9 @@ public class QdrantService {
     /**
      * 存储章节内容到向量数据库
      */
-    public String storeChapter(String chapterId, String content) {
+    public String storeChapter(String chapterId, String content, UserModel model) {
         try {
+            EmbeddingModel embeddingModel = aiModelService.getEmbeddingModel(model);
             TextSegment segment = TextSegment.from(content);
             Embedding embedding = embeddingModel.embed(segment).content();
             String id = getEmbeddingStore().add(embedding);
@@ -72,8 +74,9 @@ public class QdrantService {
     /**
      * 根据查询文本搜索相似章节
      */
-    public List<EmbeddingMatch<TextSegment>> searchSimilar(String query, int maxResults) {
+    public List<EmbeddingMatch<TextSegment>> searchSimilar(String query, int maxResults, UserModel model) {
         try {
+            EmbeddingModel embeddingModel = aiModelService.getEmbeddingModel(model);
             Embedding queryEmbedding = embeddingModel.embed(query).content();
             return getEmbeddingStore().findRelevant(queryEmbedding, maxResults, 0.0);
         } catch (Exception e) {
