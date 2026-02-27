@@ -24,6 +24,10 @@
               <span class="project-name">{{ n.title }}</span>
               <span class="project-meta">{{ n.genre || '未分类' }} · {{ statusText(n.status) }}</span>
             </router-link>
+            <div class="project-actions">
+              <router-link :to="`/novels/${n.id}/edit`" class="btn-edit">编辑</router-link>
+              <button type="button" class="btn-delete" @click.stop="onDelete(n)">删除</button>
+            </div>
           </li>
         </ul>
       </template>
@@ -33,10 +37,12 @@
 
 <script setup>
 import { ref, watch, inject } from 'vue'
+import { useRouter } from 'vue-router'
 import * as novels from '../api/novels'
 
 const userId = inject('userId', ref(1))
 const openCreateModal = inject('openCreateModal', () => {})
+const router = useRouter()
 
 const list = ref([])
 const loading = ref(false)
@@ -54,6 +60,16 @@ watch(userId, load, { immediate: true })
 function statusText(s) {
   const map = { 0: '草稿', 1: '发布中', 2: '已完成' }
   return map[s] ?? '未知'
+}
+
+function onDelete(n) {
+  if (!confirm(`确定删除《${n.title}》？此操作将删除所有相关数据，且无法恢复。`)) return
+  novels.deleteNovel(n.id).then(() => {
+    list.value = list.value.filter((x) => x.id !== n.id)
+  }).catch((err) => {
+    console.error('删除失败:', err)
+    alert('删除失败，请稍后重试')
+  })
 }
 </script>
 
@@ -128,14 +144,17 @@ function statusText(s) {
   text-align: left;
 }
 .project-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid var(--border);
+  padding: 16px 0;
 }
 .project-item:last-child {
   border-bottom: none;
 }
 .project-link {
-  display: block;
-  padding: 16px 0;
+  flex: 1;
   text-decoration: none;
   color: var(--text-primary);
 }
@@ -150,5 +169,36 @@ function statusText(s) {
 .project-meta {
   font-size: 13px;
   color: var(--text-secondary);
+}
+.project-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: 16px;
+}
+.btn-edit,
+.btn-delete {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn-edit {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.btn-edit:hover {
+  background: var(--bg-hover);
+}
+.btn-delete {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+.btn-delete:hover {
+  background: var(--danger);
+  color: white;
 }
 </style>

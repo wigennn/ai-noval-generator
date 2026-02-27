@@ -39,60 +39,6 @@ public class ChapterGenerationTaskService {
      */
     @Transactional
     public void doGenerateChapterContent(Long novelId, Long chapterId, Long taskId) {
-        Novel novel = novelRepository.findById(novelId)
-                .orElseThrow(() -> new RuntimeException("Novel not found: " + novelId));
-        Chapter chapter = chapterRepository.findById(chapterId)
-                .orElseThrow(() -> new RuntimeException("Chapter not found: " + chapterId));
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task not found: " + taskId));
-        UserModel model = userModelRepository.findByUserIdAndType(novel.getUserId(), ModelTypeEnum.NORMAL.getType())
-                .orElseThrow(() -> new RuntimeException("User model not found: " + novel.getUserId()));
 
-        task.setTaskStatus(1);
-        taskRepository.save(task);
-        chapter.setStatus(1);
-        chapterRepository.save(chapter);
-
-        try {
-            List<Chapter> previousChapters = chapterRepository.findByNovelId(novel.getId())
-                    .stream()
-                    .filter(c -> c.getChapterNumber() < chapter.getChapterNumber())
-                    .sorted((a, b) -> Integer.compare(a.getChapterNumber(), b.getChapterNumber()))
-                    .collect(Collectors.toList());
-            List<String> previousAbstracts = previousChapters.stream()
-                    .map(Chapter::getAbstractContent)
-                    .filter(abstractContent -> abstractContent != null && !abstractContent.isEmpty())
-                    .collect(Collectors.toList());
-
-            String content = aiModelService.generateChapterContent(
-                    novel.getTitle(),
-                    novel.getGenre(),
-                    novel.getSettingText(),
-                    novel.getStructure(),
-                    chapter.getTitle(),
-                    chapter.getAbstractContent(),
-                    previousAbstracts,
-                    novel.getChapterWordCount(),
-                    model
-            );
-            chapter.setContent(content);
-            if (chapter.getAbstractContent() == null || chapter.getAbstractContent().isEmpty()) {
-                String abstractContent = aiModelService.generateChapterAbstract(content, model);
-                chapter.setAbstractContent(abstractContent);
-            }
-            String vectorId = qdrantService.storeChapter(chapter.getId().toString(), content, model);
-            chapter.setVectorId(vectorId);
-            chapter.setStatus(2);
-            chapterRepository.save(chapter);
-            task.setTaskStatus(2);
-            taskRepository.save(task);
-            log.info("Successfully generated chapter {} for novel: {}", chapter.getChapterNumber(), novel.getId());
-        } catch (Exception e) {
-            log.error("Error generating chapter content for chapter: {}", chapter.getId(), e);
-            chapter.setStatus(0);
-            chapterRepository.save(chapter);
-            task.setTaskStatus(3);
-            taskRepository.save(task);
-        }
     }
 }

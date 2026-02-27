@@ -20,6 +20,16 @@
       </div>
 
       <div class="field">
+        <label class="label">总章数</label>
+        <input v-model.number="form.chapterNumber" type="number" min="0" placeholder="总章数" />
+      </div>
+
+      <div class="field">
+        <label class="label">章节字数</label>
+        <input v-model.number="form.chapterWordCount" type="number" min="0" placeholder="每章字数" />
+      </div>
+
+      <div class="field">
         <label class="label">关联资料库</label>
         <p class="hint">选择已上传的资料库，生成章节时可参考其内容。可多选。</p>
         <div v-if="libraryLoading" class="hint">加载资料库中…</div>
@@ -67,7 +77,7 @@ const route = useRoute()
 const router = useRouter()
 
 const isEdit = computed(() => !!route.params.id)
-const form = ref({ title: '', genre: '', settingText: '', async: true })
+const form = ref({ title: '', genre: '', settingText: '', chapterNumber: 0, chapterWordCount: 0, async: true })
 const saving = ref(false)
 const libraryList = ref([])
 const libraryLoading = ref(false)
@@ -81,6 +91,8 @@ function loadNovel() {
       title: data.title,
       genre: data.genre || '',
       settingText: data.settingText || '',
+      chapterNumber: data.chapterNumber || 0,
+      chapterWordCount: data.chapterWordCount || 0,
       async: true
     }
   })
@@ -114,7 +126,9 @@ async function onSubmit() {
         userId: props.userId,
         title: form.value.title,
         genre: form.value.genre,
-        settingText: form.value.settingText
+        settingText: form.value.settingText,
+        chapterNumber: form.value.chapterNumber,
+        chapterWordCount: form.value.chapterWordCount
       })
       const novelId = Number(route.params.id)
       const toAdd = selectedVectorIds.value.filter((id) => !existingNovelVectors.value.some((v) => v.vectorId === id))
@@ -127,6 +141,8 @@ async function onSubmit() {
         title: form.value.title,
         genre: form.value.genre,
         settingText: form.value.settingText,
+        chapterNumber: form.value.chapterNumber,
+        chapterWordCount: form.value.chapterWordCount,
         async: form.value.async
       })
       for (const vectorId of selectedVectorIds.value) {

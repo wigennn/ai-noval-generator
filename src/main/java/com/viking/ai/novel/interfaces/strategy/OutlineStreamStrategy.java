@@ -1,10 +1,9 @@
 package com.viking.ai.novel.interfaces.strategy;
 
-import com.viking.ai.novel.domain.model.Chapter;
 import com.viking.ai.novel.domain.model.Novel;
 import com.viking.ai.novel.domain.model.UserModel;
-import com.viking.ai.novel.domain.repository.ChapterRepository;
 import com.viking.ai.novel.domain.repository.NovelRepository;
+import com.viking.ai.novel.application.service.ChapterService;
 import com.viking.ai.novel.infrastructure.ai.AiModelService;
 import com.viking.ai.novel.interfaces.dto.ChapterStreamPayload;
 import lombok.RequiredArgsConstructor;
@@ -12,10 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * 章节大纲流式生成策略
@@ -27,7 +23,7 @@ public class OutlineStreamStrategy implements NovelStreamStrategy {
 
     private final AiModelService aiModelService;
     private final NovelRepository novelRepository;
-    private final ChapterRepository chapterRepository;
+    private final ChapterService chapterService;
 
     @Override
     public String getType() {
@@ -56,11 +52,11 @@ public class OutlineStreamStrategy implements NovelStreamStrategy {
             return;
         }
 
-        // 如果已存在章节大纲，说明是“重新生成”，需要先删除原有章节记录
+        // 如果已存在章节大纲，说明是"重新生成"，需要先删除原有章节记录
         if (novel.getChapterOutline() != null && !novel.getChapterOutline().isEmpty()) {
             Long novelId = novel.getId();
             log.info("Regenerating chapter outline, delete existing chapters for novel: {}", novelId);
-            chapterRepository.deleteByNovelId(novelId);
+            chapterService.deleteChaptersByNovelId(novelId);
         }
 
         aiModelService.streamChapterOutline(
@@ -95,7 +91,7 @@ public class OutlineStreamStrategy implements NovelStreamStrategy {
                             novelRepository.save(novel);
 
                             // 同步章节表：根据大纲提取每章标题，创建占位章节
-                            syncChaptersFromOutline(novel, fullText);
+                            chapterService.syncChaptersFromOutline(novel.getId(), fullText);
                             messagingTemplate.convertAndSend(destination,
                                     new ChapterStreamPayload("complete", null));
                         } catch (Exception e) {
@@ -116,45 +112,6 @@ public class OutlineStreamStrategy implements NovelStreamStrategy {
                     }
                 }
         );
-    }
-
-    /**
-     * 从章节大纲中提取每章标题，同步到 chapters 表
-     */
-    private void syncChaptersFromOutline(Novel novel, String outline) {
-        if (outline == null || outline.isEmpty()) {
-            return;
-        }
-        Long novelId = novel.getId();
-        // 匹配格式：## 第X章 [章节标题] 或 ## 第X章 章节标题
-        Pattern pattern = Pattern.compile("^##\\s*第(\\d+)章\\s*(.*)$", Pattern.MULTILINE);
-        Matcher matcher = pattern.matcher(outline);
-
-        while (matcher.find()) {
-            int chapterNumber = Integer.parseInt(matcher.group(1));
-            String rawTitle = matcher.group(2) != null ? matcher.group(2).trim() : "";
-            // 去掉可能的方括号
-            String title = rawTitle.replaceAll("^[\\[【]?|[】\\]]?$", "").trim();
-
-            Optional<Chapter> existingOpt = chapterRepository.findByNovelIdAndChapterNumber(novelId, chapterNumber);
-            if (existingOpt.isPresent()) {
-                // 已存在章节，不强制覆盖标题，只在标题为空时补充
-                Chapter existing = existingOpt.get();
-                if ((existing.getTitle() == null || existing.getTitle().isEmpty()) && !title.isEmpty()) {
-                    existing.setTitle(title);
-                    chapterRepository.save(existing);
-                }
-            } else {
-                // 创建占位章节记录（仅有编号和标题，状态为待处理）
-                Chapter chapter = Chapter.builder()
-                        .novelId(novelId)
-                        .chapterNumber(chapterNumber)
-                        .title(title.isEmpty() ? null : title)
-                        .status(0)
-                        .build();
-                chapterRepository.save(chapter);
-            }
-        }
     }
 }
 

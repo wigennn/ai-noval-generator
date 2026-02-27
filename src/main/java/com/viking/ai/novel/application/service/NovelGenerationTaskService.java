@@ -31,34 +31,7 @@ public class NovelGenerationTaskService {
      */
     @Transactional
     public void doGenerateNovelStructure(Long novelId, Long taskId, Long userId) {
-        Novel novel = novelRepository.findById(novelId)
-                .orElseThrow(() -> new RuntimeException("Novel not found: " + novelId));
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task not found: " + taskId));
-        UserModel model = userModelRepository.findByUserIdAndType(userId, ModelTypeEnum.NORMAL.getType())
-                .orElseThrow(() -> new RuntimeException("User model not found: " + userId));
 
-        task.setTaskStatus(1);
-        taskRepository.save(task);
-
-        try {
-            String structure = aiModelService.generateNovelStructure(
-                    novel.getTitle(),
-                    novel.getGenre(),
-                    novel.getSettingText(),
-                    novel.getChapterNumber(),
-                    model
-            );
-            novel.setStructure(structure);
-            novelRepository.save(novel);
-            task.setTaskStatus(2);
-            taskRepository.save(task);
-            log.info("Successfully generated structure for novel: {}", novel.getId());
-        } catch (Exception e) {
-            log.error("Error generating novel structure for novel: {}", novel.getId(), e);
-            task.setTaskStatus(3);
-            taskRepository.save(task);
-        }
     }
     
     /**
@@ -66,40 +39,5 @@ public class NovelGenerationTaskService {
      */
     @Transactional
     public void doGenerateChapterOutline(Long novelId, Long taskId) {
-        Novel novel = novelRepository.findById(novelId)
-                .orElseThrow(() -> new RuntimeException("Novel not found: " + novelId));
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task not found: " + taskId));
-        UserModel model = userModelRepository.findByUserIdAndType(novel.getUserId(), ModelTypeEnum.NORMAL.getType())
-                .orElseThrow(() -> new RuntimeException("User model not found: " + novel.getUserId()));
-        
-        if (novel.getStructure() == null || novel.getStructure().isEmpty()) {
-            log.error("Cannot generate chapter outline: novel structure is empty for novel: {}", novelId);
-            task.setTaskStatus(0);
-            taskRepository.save(task);
-            return;
-        }
-        
-        task.setTaskStatus(1);
-        taskRepository.save(task);
-        
-        try {
-            String chapterOutline = aiModelService.generateChapterOutline(
-                    novel.getTitle(),
-                    novel.getGenre(),
-                    novel.getSettingText(),
-                    novel.getStructure(),
-                    model
-            );
-            novel.setChapterOutline(chapterOutline);
-            novelRepository.save(novel);
-            task.setTaskStatus(2);
-            taskRepository.save(task);
-            log.info("Successfully generated chapter outline for novel: {}", novel.getId());
-        } catch (Exception e) {
-            log.error("Error generating chapter outline for novel: {}", novel.getId(), e);
-            task.setTaskStatus(3);
-            taskRepository.save(task);
-        }
     }
 }

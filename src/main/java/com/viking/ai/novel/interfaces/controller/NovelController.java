@@ -106,7 +106,9 @@ public class NovelController {
                     id,
                     request.getTitle(),
                     request.getGenre(),
-                    request.getSettingText()
+                    request.getSettingText(),
+                    request.getChapterNumber(),
+                    request.getChapterWordCount()
             );
             return ResponseEntity.ok(novelMapper.toDTO(novel));
         } catch (RuntimeException e) {

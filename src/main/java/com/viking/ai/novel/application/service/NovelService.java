@@ -1,5 +1,7 @@
 package com.viking.ai.novel.application.service;
 
+import com.viking.ai.novel.application.service.ChapterService;
+import com.viking.ai.novel.application.service.NovelVectorService;
 import com.viking.ai.novel.domain.model.Novel;
 import com.viking.ai.novel.domain.model.Task;
 import com.viking.ai.novel.domain.repository.NovelRepository;
@@ -24,15 +26,21 @@ public class NovelService {
     private final TaskRepository taskRepository;
     private final NovelGenerationTaskService novelGenerationTaskService;
     private final AiGenerateProducer aiGenerateProducer;
+    private final ChapterService chapterService;
+    private final NovelVectorService novelVectorService;
 
     public NovelService(NovelRepository novelRepository,
                         TaskRepository taskRepository,
                         NovelGenerationTaskService novelGenerationTaskService,
-                        @Autowired(required = false) AiGenerateProducer aiGenerateProducer) {
+                        @Autowired(required = false) AiGenerateProducer aiGenerateProducer,
+                        ChapterService chapterService,
+                        NovelVectorService novelVectorService) {
         this.novelRepository = novelRepository;
         this.taskRepository = taskRepository;
         this.novelGenerationTaskService = novelGenerationTaskService;
         this.aiGenerateProducer = aiGenerateProducer;
+        this.chapterService = chapterService;
+        this.novelVectorService = novelVectorService;
     }
 
     /**
@@ -72,7 +80,8 @@ public class NovelService {
      * 更新小说
      */
     @Transactional
-    public Novel updateNovel(Long id, String title, String genre, String settingText) {
+    public Novel updateNovel(Long id, String title, String genre, String settingText,
+                             Integer chapterNumber, Integer chapterWordCount) {
         Novel novel = novelRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Novel not found: " + id));
         
@@ -85,16 +94,38 @@ public class NovelService {
         if (settingText != null) {
             novel.setSettingText(settingText);
         }
+        if (chapterNumber != null) {
+            novel.setChapterNumber(chapterNumber);
+        }
+        if (chapterWordCount != null) {
+            novel.setChapterWordCount(chapterWordCount);
+        }
         
         return novelRepository.save(novel);
     }
     
     /**
-     * 删除小说
+     * 删除小说（同时删除关联的章节、向量数据和小说向量关联）
      */
     @Transactional
     public void deleteNovel(Long id) {
+        // 检查小说是否存在
+        if (!novelRepository.findById(id).isPresent()) {
+            throw new RuntimeException("Novel not found: " + id);
+        }
+        
+        // 删除所有章节（包括向量数据）
+        chapterService.deleteChaptersByNovelId(id);
+        
+        // 删除小说向量关联
+        List<com.viking.ai.novel.domain.model.NovelVector> novelVectors = novelVectorService.listByNovelId(id);
+        for (com.viking.ai.novel.domain.model.NovelVector nv : novelVectors) {
+            novelVectorService.delete(nv.getId());
+        }
+        
+        // 删除小说本身
         novelRepository.deleteById(id);
+        log.info("Deleted novel {} and all related data", id);
     }
     
     /**
