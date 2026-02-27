@@ -80,7 +80,7 @@
             type="button" 
             class="btn-generate" 
             :disabled="generatingOutline || !novel.structure" 
-            @click="startStreamOutline">
+            @click="startStreamOutline(false)">
             <span class="btn-play">▷</span>
             {{ generatingOutline ? '生成中...' : '开始生成大纲' }}
           </button>
@@ -366,6 +366,9 @@ watch(id, load, { immediate: true })
 watch(activeTab, (newTab) => {
   if (newTab === 'writing' || newTab === 'structure' || newTab === 'outline') {
     initWebSocket()
+  }
+  if (newTab === 'outline' && id.value && novel.value && !novel.value.structure) {
+    load()
   }
 })
 
@@ -683,9 +686,13 @@ function startStreamStructure() {
         }
       })
     } else if (type === 'complete') {
+      const savedStructure = streamingStructure.value
       generatingStructure.value = false
       streamingStructure.value = ''
       await load()
+      if (novel.value && !novel.value.structure && savedStructure) {
+        novel.value = { ...novel.value, structure: savedStructure }
+      }
       if (subscription) {
         subscription.unsubscribe()
       }
