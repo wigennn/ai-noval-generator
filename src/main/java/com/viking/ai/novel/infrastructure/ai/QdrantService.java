@@ -9,6 +9,7 @@ import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.qdrant.QdrantEmbeddingStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,7 @@ public class QdrantService {
     @Value("${qdrant.collection-name:novel-chapters}")
     private String collectionName;
     private EmbeddingStore<TextSegment> embeddingStore;
+    @Autowired
     private AiModelService aiModelService;
     
     private EmbeddingStore<TextSegment> getEmbeddingStore() {
@@ -36,6 +38,7 @@ public class QdrantService {
                     .host(qdrantHost)
                     .port(qdrantPort)
                     .collectionName(collectionName)
+                    .useTls(false) // 是否使用https
                     .build();
         }
         return embeddingStore;
