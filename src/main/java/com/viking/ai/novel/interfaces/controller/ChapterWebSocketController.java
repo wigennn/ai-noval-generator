@@ -12,12 +12,15 @@ import com.viking.ai.novel.infrastructure.constants.ModelTypeEnum;
 import com.viking.ai.novel.interfaces.dto.ChapterStreamPayload;
 import com.viking.ai.novel.interfaces.dto.ChapterStreamRequest;
 import com.viking.ai.novel.interfaces.dto.StopStreamRequest;
+import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.store.embedding.EmbeddingMatch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -95,6 +98,9 @@ public class ChapterWebSocketController {
                     .filter(abstractContent -> abstractContent != null && !abstractContent.isEmpty())
                     .collect(Collectors.toList());
 
+            // 查询向量数据库获取最相关的top3片段
+            List<String> relevantSnippets = queryRelevantSnippets(novel, chapter);
+
             // 标记处理中
             chapter.setStatus(1);
             chapterRepository.save(chapter);
@@ -108,6 +114,7 @@ public class ChapterWebSocketController {
                     chapter.getAbstractContent(),
                     previousAbstracts,
                     novel.getChapterWordCount(),
+                    relevantSnippets,
                     model,
                     new AiModelService.ChapterStreamCallback() {
                         @Override
@@ -143,7 +150,6 @@ public class ChapterWebSocketController {
                                             chapter.getId().toString(), fullText, model);
                                     chapter.setVectorId(vectorId);
                                 } catch (Exception e) {
-                                    // TODO
                                     log.error("Error storing chapter to Qdrant", e);
                                 }
                                 chapter.setStatus(2);
@@ -191,6 +197,56 @@ public class ChapterWebSocketController {
         } else {
             log.warn("Chapter stream not found: {}", streamKey);
         }
+    }
+
+    /**
+     * 查询相关片段
+     */
+    private List<String> queryRelevantSnippets(Novel novel, Chapter chapter) {
+        List<String> relevantSnippets = new ArrayList<>();
+        try {
+            // 构建查询文本：章节标题 + 章节摘要 + 世界观设定
+            StringBuilder queryBuilder = new StringBuilder();
+            if (chapter.getTitle() != null && !chapter.getTitle().isEmpty()) {
+                queryBuilder.append("章节标题：").append(chapter.getTitle()).append("\n");
+            }
+            if (chapter.getAbstractContent() != null && !chapter.getAbstractContent().isEmpty()) {
+                queryBuilder.append("章节摘要：").append(chapter.getAbstractContent()).append("\n");
+            }
+            if (novel.getSettingText() != null && !novel.getSettingText().isEmpty()) {
+                queryBuilder.append("世界观设定：").append(novel.getSettingText());
+            }
+
+            String queryText = queryBuilder.toString();
+            if (!queryText.isEmpty()) {
+                // 获取用户的向量模型（用于embedding）
+                UserModel vectorModel = userModelRepository.findByUserIdAndType(
+                                novel.getUserId(), ModelTypeEnum.VECTOR.getType())
+                        .orElse(null);
+
+                if (vectorModel != null) {
+                    // 查询向量数据库，获取top3相关片段
+                    List<EmbeddingMatch<TextSegment>> matches = qdrantService.searchSimilar(queryText, 3, vectorModel);
+                    for (EmbeddingMatch<TextSegment> match : matches) {
+                        TextSegment segment = match.embedded();
+                        if (segment != null && segment.text() != null) {
+                            String text = segment.text().trim();
+                            if (!text.isEmpty()) {
+                                relevantSnippets.add(text);
+                            }
+                        }
+                    }
+                    log.info("Found {} relevant snippets for chapter {} of novel {}",
+                            relevantSnippets.size(), chapter.getChapterNumber(), novel.getId());
+                } else {
+                    log.warn("Vector model not found for user {}, skipping RAG search", novel.getUserId());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error searching relevant snippets from vector database", e);
+            // 不中断流程，继续生成章节内容
+        }
+        return relevantSnippets;
     }
 }
 

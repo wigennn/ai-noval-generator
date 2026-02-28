@@ -55,8 +55,10 @@ public class AiModelService {
 
     public EmbeddingModel getEmbeddingModel(UserModel model) {
         return OpenAiEmbeddingModel.builder()
+                .baseUrl(model.getModelUrl())
                 .apiKey(model.getApiKey())
                 .modelName(model.getModelName())
+                .dimensions(1024)
                 .build();
     }
     
@@ -94,7 +96,7 @@ public class AiModelService {
     public void streamChapterContent(String novelTitle, String genre, String settingText,
                                      String structure, String chapterTitle, String chapterAbstract,
                                      List<String> previousChapters, Integer chapterWordCount,
-                                     UserModel model, ChapterStreamCallback callback) {
+                                     List<String> relevantSnippets, UserModel model, ChapterStreamCallback callback) {
         StreamingChatLanguageModel streamingModel = getStreamingChatModel(model);
 
         StringBuilder contextBuilder = new StringBuilder();
@@ -102,6 +104,15 @@ public class AiModelService {
             contextBuilder.append("前文摘要：\n");
             for (int i = 0; i < previousChapters.size(); i++) {
                 contextBuilder.append(String.format("第%d章：%s\n", i + 1, previousChapters.get(i)));
+            }
+        }
+
+        // 添加相关片段（RAG检索结果）
+        StringBuilder relevantSnippetsBuilder = new StringBuilder();
+        if (relevantSnippets != null && !relevantSnippets.isEmpty()) {
+            relevantSnippetsBuilder.append("\n【相关参考片段】（来自向量数据库检索，请参考这些内容以保持风格和设定的一致性）：\n");
+            for (int i = 0; i < relevantSnippets.size(); i++) {
+                relevantSnippetsBuilder.append(String.format("片段%d：\n%s\n\n", i + 1, relevantSnippets.get(i)));
             }
         }
 
@@ -124,6 +135,8 @@ public class AiModelService {
             
             %s
             
+            %s
+            
             章节标题：%s
             章节摘要：%s
             
@@ -133,15 +146,13 @@ public class AiModelService {
             3. 文笔流畅，符合%s题材的风格
             4. %s
             5. 章节结尾要有适当的悬念或转折
+            6. 参考上述相关片段，保持风格和设定的一致性，但不要直接复制，要基于这些参考进行创作
             """, novelTitle, genre, settingText, structure, contextBuilder.toString(),
-                chapterTitle, chapterAbstract, genre, wordCountRequirement);
-
-        StringBuilder full = new StringBuilder();
+                relevantSnippetsBuilder.toString(), chapterTitle, chapterAbstract, genre, wordCountRequirement);
 
         streamingModel.generate(prompt, new StreamingResponseHandler<AiMessage>() {
             @Override
             public void onNext(String token) {
-                full.append(token);
                 if (callback != null) {
                     callback.onDelta(token);
                 }
