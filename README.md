@@ -36,8 +36,8 @@
 
 #### 2. **流式生成系统**
 - ✅ **小说结构生成**：基于标题、题材、世界观设定生成完整的小说架构
-- ✅ **章节大纲生成**：根据小说结构生成详细的章节大纲，支持继续生成
-- ✅ **章节内容生成**：基于章节标题、摘要和前文生成完整章节内容
+- ✅ **章节大纲生成**：根据小说结构生成详细的章节大纲，支持继续生成（带已有大纲内容，完成后更新小说表）
+- ✅ **章节内容生成**：基于章节标题、摘要和前文生成完整章节内容；支持弹框确认后再生成、一键按章节顺序依次生成、支持停止
 - ✅ 所有生成均支持 WebSocket 实时流式输出
 - ✅ 生成过程中可随时停止
 
@@ -56,7 +56,9 @@
 #### 5. **用户与认证**
 - ✅ 邮箱验证码登录
 - ✅ 未注册邮箱自动创建账号
+- ✅ 用户积分（score）与积分记录（score_log）
 - ✅ 用户级 API 配置管理
+- ✅ 登录校验与资源越权防护（全局切面：`@RequireLogin`、`@CheckNovelOwner`、`@CheckChapterOwner`、`@CheckNovelVectorOwner` 等）
 
 #### 6. **API 设置**
 - ✅ 支持多种模型渠道（OpenAI、DeepSeek、自定义）
@@ -72,6 +74,7 @@
 #### 8. **章节管理**
 - ✅ 章节列表展示
 - ✅ 章节详情查看（富文本渲染）
+- ✅ 章节详情导出 TXT
 - ✅ 章节自动同步：从大纲提取章节标题并创建占位章节
 - ✅ 章节状态管理（待处理 / 生成中 / 已完成）
 
@@ -85,6 +88,7 @@
 
 - ✅ **WebSocket (STOMP)**：实时双向通信
 - ✅ **策略模式**：流式生成逻辑抽象，易于扩展
+- ✅ **全局切面权限**：登录校验与资源归属校验，防止越权访问
 - ✅ **事务管理**：确保数据一致性
 - ✅ **异常处理**：完善的错误处理和日志记录
 - ✅ **代码规范**：清晰的架构分层和代码组织
@@ -138,12 +142,14 @@
 
 ```
 ai-noval-generator/
+├── docs/                   # 文档与脚本
+│   └── create_tables.sql   # MySQL 建表脚本（含表注释、索引、唯一键）
 ├── src/                    # 后端 (Spring Boot)
 │   └── main/java/com/viking/ai/novel/
-│       ├── application/     # 应用服务层
-│       ├── domain/          # 领域模型与仓储接口
-│       ├── infrastructure/  # 基础设施层（配置、AI 服务、JPA/Qdrant 实现）
-│       └── interfaces/     # 接口层（Controller、DTO、Mapper、策略）
+│       ├── application/    # 应用服务层
+│       ├── domain/         # 领域模型与仓储接口
+│       ├── infrastructure/ # 基础设施层（配置、AI 服务、JPA/Qdrant 实现）
+│       └── interfaces/     # 接口层（Controller、DTO、Mapper、AOP 权限切面）
 ├── web/                    # 前端 (Vue 3 + Vite)
 │   ├── src/
 │   │   ├── api/            # 接口封装
@@ -153,6 +159,7 @@ ai-noval-generator/
 │   │   └── views/          # 页面视图
 │   └── package.json
 ├── pom.xml
+├── docker-compose.yml      # Docker 一键启动
 └── README.md
 ```
 
@@ -170,6 +177,7 @@ ai-noval-generator/
 ### 1. 数据库与 Qdrant
 
 - 创建 MySQL 数据库，例如：`ai_novel`
+- 执行建表脚本：`docs/create_tables.sql`（含 users、novel、chapters、novel_vectors、score_log 等表及索引、注释）
 - 启动 Qdrant（Docker 示例）：
   ```bash
   docker run -p 6333:6333 qdrant/qdrant
