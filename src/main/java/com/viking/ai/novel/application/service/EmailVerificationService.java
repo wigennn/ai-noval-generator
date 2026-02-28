@@ -24,14 +24,17 @@ public class EmailVerificationService {
 
     private final JavaMailSender mailSender;
     private final boolean mailEnabled;
+    private final String mailUsername;
 
     /** key: email (lowercase), value: [code, expireAtMillis, lastSendAtMillis] */
     private final Map<String, CodeEntry> store = new ConcurrentHashMap<>();
 
     public EmailVerificationService(
             org.springframework.beans.factory.ObjectProvider<JavaMailSender> mailSenderProvider,
-            @Value("${spring.mail.host:}") String mailHost) {
+            @Value("${spring.mail.host}") String mailHost,
+            @Value("${spring.mail.username:#{null}}") String mailUsername) {
         this.mailSender = mailSenderProvider.getIfAvailable();
+        this.mailUsername = mailUsername;
         this.mailEnabled = mailHost != null && !mailHost.isBlank() && this.mailSender != null;
     }
 
@@ -54,13 +57,13 @@ public class EmailVerificationService {
         if (mailEnabled && mailSender != null) {
             try {
                 SimpleMailMessage msg = new SimpleMailMessage();
+                msg.setFrom(mailUsername); // 明确设置发件人地址
                 msg.setTo(email.trim());
                 msg.setSubject("AI 小说生成器 - 验证码");
                 msg.setText("您的验证码是：" + code + "\n\n" + CODE_EXPIRE_MINUTES + " 分钟内有效。\n\n如非本人操作请忽略。");
                 mailSender.send(msg);
                 log.info("Verification email sent to {}", email);
-            } catch (Exception e) {
-                log.error("Failed to send verification email to {}", email, e);
+            } catch (Exception e) {log.error("Failed to send verification email to {}", email, e);
                 store.remove(key);
                 throw new RuntimeException("邮件发送失败，请稍后重试");
             }

@@ -16,6 +16,20 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
+  # Mail（可选，用于发送验证码；不配置时验证码仅打印到控制台便于开发）
+  mail:
+    host: smtp.163.com
+    port: 465
+    username: ainovelgenerator@163.com
+    password: xxxxxx
+    protocol: smtps
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.ssl.enable: true
+      mail.smtp.socketFactory.class: javax.net.ssl.SSLSocketFactory
+      mail.smtp.socketFactory.fallback: false
+      mail.smtp.ssl.checkserveridentity: true
+      mail.smtp.from: ainovelgenerator@163.com
 
 # Qdrant Configuration
 qdrant:
@@ -46,14 +60,3 @@ rocketmq:
   producer:
     group: ai-novel-producer
     send-message-timeout: 30000
-
-  # Mail（可选，用于发送验证码；不配置时验证码仅打印到控制台便于开发）
-  spring:
-    mail:
-      host: smtp.163.com
-      port: 465
-      username: test@163.com
-      password: test
-      properties:
-      mail.smtp.auth: true
-      mail.smtp.starttls.enable: true
