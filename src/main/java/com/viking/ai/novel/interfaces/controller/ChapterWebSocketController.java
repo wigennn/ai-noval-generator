@@ -84,6 +84,10 @@ public class ChapterWebSocketController {
                             novel.getUserId(), ModelTypeEnum.NORMAL.getType())
                     .orElseThrow(() -> new RuntimeException("User model not found: " + novel.getUserId()));
 
+            UserModel embeddingModel = userModelRepository.findByUserIdAndType(
+                            novel.getUserId(), ModelTypeEnum.VECTOR.getType())
+                    .orElseThrow(() -> new RuntimeException("User embeddingModel not found: " + novel.getUserId()));
+
             // 查找或创建章节
             Optional<Chapter> existingChapter = chapterRepository.findByNovelIdAndChapterNumber(novelId, chapterNumber);
             Chapter chapter = existingChapter.orElseGet(() -> {
@@ -145,25 +149,8 @@ public class ChapterWebSocketController {
                                 return;
                             }
                             try {
-                                // 生成完成，保存章节、生成摘要、入库向量
-                                chapter.setContent(fullText);
-                                if (chapter.getAbstractContent() == null || chapter.getAbstractContent().isEmpty()) {
-                                    String abstractContent = aiModelService.generateChapterAbstract(fullText, model);
-                                    chapter.setAbstractContent(abstractContent);
-                                }
-
-                                try {
-                                    if (chapter.getVectorId() != null) {
-                                        qdrantService.deleteVector(chapter.getVectorId());
-                                    }
-                                    String vectorId = qdrantService.storeChapter(
-                                            chapter.getId().toString(), fullText, model);
-                                    chapter.setVectorId(vectorId);
-                                } catch (Exception e) {
-                                    log.error("Error storing chapter to Qdrant", e);
-                                }
-                                chapter.setStatus(2);
-                                chapterRepository.save(chapter);
+                                // 生成完成，保存章节、生成摘要、入库向量、创建向量关联
+                                saveChapter(novel, chapter, fullText, model, embeddingModel);
 
                                 messagingTemplate.convertAndSend(destination,
                                         new ChapterStreamPayload("complete", null));
@@ -200,7 +187,7 @@ public class ChapterWebSocketController {
 
         String streamKey = String.format("%d:%d", request.getNovelId(), request.getChapterNumber());
         AtomicBoolean stopped = activeChapterStreams.get(streamKey);
-        
+
         if (stopped != null) {
             stopped.set(true);
             log.info("Stopped chapter stream: {}", streamKey);
@@ -266,6 +253,27 @@ public class ChapterWebSocketController {
             // 不中断流程，继续生成章节内容
         }
         return relevantSnippets;
+    }
+
+    private void saveChapter(Novel novel, Chapter chapter, String fullText, UserModel model, UserModel embeddingModel) {
+        chapter.setContent(fullText);
+        if (chapter.getAbstractContent() == null || chapter.getAbstractContent().isEmpty()) {
+            String abstractContent = aiModelService.generateChapterAbstract(fullText, model);
+            chapter.setAbstractContent(abstractContent);
+        }
+
+        try {
+            if (chapter.getVectorId() != null) {
+                qdrantService.deleteVector(chapter.getVectorId());
+            }
+            String vectorId = qdrantService.storeChapter(
+                    chapter.getId().toString(), fullText, embeddingModel);
+            chapter.setVectorId(vectorId);
+        } catch (Exception e) {
+            log.error("Error storing chapter to Qdrant", e);
+        }
+        chapter.setStatus(2);
+        chapterRepository.save(chapter);
     }
 }
 

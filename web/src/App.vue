@@ -25,14 +25,14 @@
         <TaskProgress />
         <span v-if="showApiWarning" class="api-warning">
           <span class="api-warning-icon">⚠</span>
-          请配置 API Key
+          请配置 大模型设置
         </span>
         <router-link to="/library" class="header-nav-link">资料库</router-link>
+        <button type="button" title="设置" @click="openApiSettings" class="header-nav-link">大模型设置</button>
         <button type="button" class="icon-btn" title="主题" @click="toggleDark">
           <span>🌙</span>
         </button>
         <button type="button" class="icon-btn" title="通知">🔔</button>
-        <button type="button" class="icon-btn" title="设置" @click="openApiSettings">⚙</button>
         <span class="user-email">{{ currentUser?.email || currentUser?.username || '用户' }}</span>
         <button type="button" class="btn-logout" @click="handleLogout">退出</button>
       </div>

@@ -16,5 +16,6 @@ public class UserDTO {
     private String username;
     private String phone;
     private String email;
+    private Integer score;
     private LocalDateTime createdAt;
 }

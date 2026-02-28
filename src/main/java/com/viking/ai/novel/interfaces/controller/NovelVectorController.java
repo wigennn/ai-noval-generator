@@ -1,19 +1,13 @@
 package com.viking.ai.novel.interfaces.controller;
 
 import com.viking.ai.novel.application.service.NovelVectorService;
-import com.viking.ai.novel.domain.model.NovelVector;
-import com.viking.ai.novel.interfaces.aop.CheckNovelVectorOwner;
 import com.viking.ai.novel.interfaces.aop.CheckNovelIdOwner;
-import com.viking.ai.novel.interfaces.aop.CheckRequestNovelId;
+import com.viking.ai.novel.interfaces.aop.CheckNovelVectorOwner;
 import com.viking.ai.novel.interfaces.aop.RequireLogin;
-import com.viking.ai.novel.interfaces.dto.CreateNovelVectorRequest;
 import com.viking.ai.novel.interfaces.dto.NovelVectorDTO;
 import com.viking.ai.novel.interfaces.mapper.NovelVectorMapper;
-import jakarta.servlet.http.HttpSession;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,14 +22,6 @@ public class NovelVectorController {
 
     private final NovelVectorService novelVectorService;
     private final NovelVectorMapper novelVectorMapper = NovelVectorMapper.INSTANCE;
-
-    @PostMapping
-    @RequireLogin
-    @CheckRequestNovelId(paramIndex = 0, field = "novelId")
-    public ResponseEntity<NovelVectorDTO> create(@Valid @RequestBody CreateNovelVectorRequest request) {
-        NovelVector entity = novelVectorService.create(request.getNovelId(), request.getVectorId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(novelVectorMapper.toDTO(entity));
-    }
 
     @GetMapping("/{id}")
     @RequireLogin

@@ -2,18 +2,18 @@
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal modal-api">
       <div class="modal-header">
-        <h2 class="modal-title">API 设置</h2>
+        <h2 class="modal-title">AI 设置</h2>
         <button type="button" class="modal-close" aria-label="关闭" @click="$emit('close')">×</button>
       </div>
       <form @submit.prevent="onSave" class="modal-body">
         <div class="section">
           <h3 class="section-title">对话模型配置</h3>
           <div class="field">
-            <label class="label">渠道</label>
+            <label class="label">AI渠道</label>
             <select v-model="form.channel" @change="onChannelChange">
+              <option value="Ali">阿里</option>
               <option value="DeepSeek">DeepSeek</option>
               <option value="OpenAI">OpenAI</option>
-              <option value="Chatfire">Chatfire</option>
               <option value="Custom">自定义</option>
             </select>
           </div>
@@ -90,8 +90,8 @@ const channelConfigs = {
   DeepSeek: {
     baseUrl: 'https://api.deepseek.com',
     defaultModel: 'deepseek-chat',
-    embeddingBaseUrl: 'https://api.openai.com/v1',
-    embeddingModel: 'text-embedding-3-small'
+    embeddingBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    embeddingModel: 'text-embedding-v4'
   },
   OpenAI: {
     baseUrl: 'https://api.openai.com/v1',
@@ -99,11 +99,11 @@ const channelConfigs = {
     embeddingBaseUrl: 'https://api.openai.com/v1',
     embeddingModel: 'text-embedding-3-small'
   },
-  Chatfire: {
-    baseUrl: 'https://api.chatfire.site/v1',
-    defaultModel: 'gemini-3-flash-preview',
-    embeddingBaseUrl: 'https://api.openai.com/v1',
-    embeddingModel: 'text-embedding-3-small'
+  Ali: {
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    defaultModel: 'deepseek-v3.2',
+    embeddingBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    embeddingModel: 'text-embedding-v4'
   },
   Custom: {
     baseUrl: '',

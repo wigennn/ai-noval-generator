@@ -45,6 +45,7 @@ public class UserService {
                 .password(encodedPassword)
                 .phone(phone != null && !phone.isBlank() ? phone : null)
                 .email(email != null && !email.isBlank() ? email.trim() : null)
+                .score(100)
                 .build();
 
         return userRepository.save(user);
@@ -99,6 +100,7 @@ public class UserService {
                             .password(null)
                             .username(null)
                             .phone(null)
+                            .score(100)
                             .build();
                     return userRepository.save(user);
                 });

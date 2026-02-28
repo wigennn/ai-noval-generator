@@ -30,7 +30,10 @@ public class User {
     
     @Column(name = "email")
     private String email;
-    
+
+    @Column(name = "score", nullable = false)
+    private Integer score = 100;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
