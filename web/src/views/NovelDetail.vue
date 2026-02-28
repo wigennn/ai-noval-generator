@@ -120,14 +120,31 @@
       <section v-show="activeTab === 'writing'" class="content-panel card">
         <div class="writing-header">
           <h2 class="section-title">章节列表</h2>
-          <button 
-            type="button" 
-            class="btn-add-chapter" 
-            @click="showAddChapterModal = true"
-            :disabled="!novel.structure">
-            <span>+</span>
-            添加章节
-          </button>
+          <div class="writing-header-actions">
+            <button 
+              v-if="pendingChaptersForBatch.length && !batchGenerating"
+              type="button" 
+              class="btn-batch-generate"
+              @click="runBatchGenerate"
+              :disabled="streamingChapters.size > 0">
+              ⚡ 一键生成（{{ pendingChaptersForBatch.length }} 章）
+            </button>
+            <button 
+              v-if="batchGenerating"
+              type="button" 
+              class="btn-stop-batch"
+              @click="stopBatchGenerate">
+              <span>⏹</span> 停止一键生成
+            </button>
+            <button 
+              type="button" 
+              class="btn-add-chapter" 
+              @click="showAddChapterModal = true"
+              :disabled="!novel.structure">
+              <span>+</span>
+              添加章节
+            </button>
+          </div>
         </div>
         
         <div v-if="!chapters.length" class="hint">暂无章节，点击「添加章节」开始创作</div>
@@ -296,6 +313,9 @@ const selectedChapter = ref(null)
 const streamingChapters = ref(new Set())
 const streamingContent = ref({})
 const creatingChapter = ref(false)
+const batchGenerating = ref(false)
+const batchGenerateStopped = ref(false)
+const batchCurrentChapter = ref(null)
 const newChapter = ref({
   chapterNumber: null,
   title: '',
@@ -346,6 +366,13 @@ const chapterDetailExportableText = computed(() => {
   if (streamed && streamed.trim()) return streamed
   if (ch.content && ch.content.trim()) return ch.content
   return ''
+})
+
+// 待生成章节（status 0 或 1），按章节号排序，用于一键生成
+const pendingChaptersForBatch = computed(() => {
+  return chapters.value
+    .filter(ch => ch.status === 0 || ch.status === 1)
+    .sort((a, b) => a.chapterNumber - b.chapterNumber)
 })
 
 function load() {
@@ -410,10 +437,11 @@ async function initWebSocket() {
   }
 }
 
-async function subscribeChapterStream(novelId, chapterNumber, chapterId) {
+async function subscribeChapterStream(novelId, chapterNumber, chapterId, onDoneCallback) {
   const client = getWebSocketClient()
   if (!client || !client.connected) {
     console.warn('WebSocket not connected')
+    onDoneCallback?.()
     return
   }
 
@@ -447,31 +475,30 @@ async function subscribeChapterStream(novelId, chapterNumber, chapterId) {
     } else if (type === 'complete') {
       // 生成完成
       streamingChapters.value.delete(chapterId)
-      // 清除流式内容，等待加载最终内容
       delete streamingContent.value[chapterId]
-      // 重新加载章节列表和详情
       await loadChapters()
       if (selectedChapter.value && selectedChapter.value.id === chapterId) {
         await loadChapterDetail(chapterId)
       }
+      onDoneCallback?.()
     } else if (type === 'stopped') {
       // 生成已停止
       streamingChapters.value.delete(chapterId)
-      // 保留已生成的内容，不清空
       if (selectedChapter.value && selectedChapter.value.id === chapterId) {
-        // 更新章节状态
         await loadChapterDetail(chapterId)
       }
+      onDoneCallback?.()
     } else if (type === 'error') {
       // 生成错误
       streamingChapters.value.delete(chapterId)
       delete streamingContent.value[chapterId]
       alert('生成失败：' + (content || '未知错误'))
+      onDoneCallback?.()
     }
   })
 }
 
-function startStreamChapter(chapter) {
+function startStreamChapter(chapter, onDoneCallback) {
   if (!novel.value || !chapter || streamingChapters.value.has(chapter.id)) return
   
   const client = getWebSocketClient()
@@ -483,15 +510,12 @@ function startStreamChapter(chapter) {
   streamingChapters.value.add(chapter.id)
   streamingContent.value[chapter.id] = ''
   
-  // 订阅流
-  subscribeChapterStream(novel.value.id, chapter.chapterNumber, chapter.id)
+  subscribeChapterStream(novel.value.id, chapter.chapterNumber, chapter.id, onDoneCallback)
   
-  // 打开章节详情
   if (!selectedChapter.value || selectedChapter.value.id !== chapter.id) {
     selectedChapter.value = { ...chapter }
   }
 
-  // 发送生成请求
   client.publish({
     destination: '/app/chapters/stream',
     body: JSON.stringify({
@@ -501,6 +525,44 @@ function startStreamChapter(chapter) {
       abstractContent: chapter.abstractContent
     })
   })
+}
+
+function runBatchGenerate() {
+  const list = [...pendingChaptersForBatch.value]
+  if (!list.length || !novel.value) return
+  const client = getWebSocketClient()
+  if (!client || !client.connected) {
+    alert('WebSocket 未连接，请刷新页面重试')
+    return
+  }
+  batchGenerating.value = true
+  batchGenerateStopped.value = false
+  let index = 0
+  const tryNext = () => {
+    if (batchGenerateStopped.value || index >= list.length) {
+      batchGenerating.value = false
+      batchCurrentChapter.value = null
+      return
+    }
+    const ch = list[index]
+    index++
+    batchCurrentChapter.value = ch
+    startStreamChapter(ch, () => {
+      batchCurrentChapter.value = null
+      loadChapters().then(() => tryNext())
+    })
+  }
+  tryNext()
+}
+
+function stopBatchGenerate() {
+  batchGenerateStopped.value = true
+  const ch = batchCurrentChapter.value
+  if (ch) {
+    stopStreamChapter(ch)
+    batchCurrentChapter.value = null
+  }
+  batchGenerating.value = false
 }
 
 async function createChapter() {
@@ -1075,6 +1137,51 @@ function doExport(format) {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+}
+
+.writing-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-batch-generate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-batch-generate:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.btn-batch-generate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-stop-batch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #dc2626;
+  background: var(--bg-card);
+  border: 1px solid #dc2626;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-stop-batch:hover {
+  background: #fee2e2;
 }
 
 .btn-add-chapter {

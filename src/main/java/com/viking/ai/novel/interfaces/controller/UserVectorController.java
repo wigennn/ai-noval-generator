@@ -1,11 +1,16 @@
 package com.viking.ai.novel.interfaces.controller;
 
+import com.viking.ai.novel.application.service.CurrentUserService;
 import com.viking.ai.novel.application.service.UserVectorService;
 import com.viking.ai.novel.domain.model.UserVector;
+import com.viking.ai.novel.interfaces.aop.CheckUserVectorOwner;
+import com.viking.ai.novel.interfaces.aop.CheckUserId;
+import com.viking.ai.novel.interfaces.aop.RequireLogin;
 import com.viking.ai.novel.interfaces.dto.CreateUserVectorRequest;
 import com.viking.ai.novel.interfaces.dto.UploadUserVectorRequest;
 import com.viking.ai.novel.interfaces.dto.UserVectorDTO;
 import com.viking.ai.novel.interfaces.mapper.UserVectorMapper;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,9 +21,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * 用户资料库（用户向量）API
- */
 @RestController
 @RequestMapping("/api/user-vectors")
 @RequiredArgsConstructor
@@ -26,42 +28,28 @@ import java.util.stream.Collectors;
 public class UserVectorController {
 
     private final UserVectorService userVectorService;
+    private final CurrentUserService currentUserService;
     private final UserVectorMapper userVectorMapper = UserVectorMapper.INSTANCE;
 
     @PostMapping
-    public ResponseEntity<UserVectorDTO> create(@Valid @RequestBody CreateUserVectorRequest request) {
-        try {
-            UserVector entity = userVectorService.create(
-                    request.getUserId(),
-                    request.getVectorName(),
-                    request.getVectorId()
-            );
-            return ResponseEntity.status(HttpStatus.CREATED).body(userVectorMapper.toDTO(entity));
-        } catch (Exception e) {
-            log.error("Error creating user vector", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    @RequireLogin
+    public ResponseEntity<UserVectorDTO> create(@Valid @RequestBody CreateUserVectorRequest request, HttpSession session) {
+        long userId = currentUserService.requireCurrentUserId(session);
+        UserVector entity = userVectorService.create(userId, request.getVectorName(), request.getVectorId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(userVectorMapper.toDTO(entity));
     }
 
-    /**
-     * 上传资料库：提交文本内容，自动向量化并入库
-     */
     @PostMapping("/upload")
-    public ResponseEntity<UserVectorDTO> upload(@Valid @RequestBody UploadUserVectorRequest request) {
-        try {
-            UserVector entity = userVectorService.createFromContent(
-                    request.getUserId(),
-                    request.getVectorName(),
-                    request.getContent()
-            );
-            return ResponseEntity.status(HttpStatus.CREATED).body(userVectorMapper.toDTO(entity));
-        } catch (Exception e) {
-            log.error("Error uploading user vector", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    @RequireLogin
+    public ResponseEntity<UserVectorDTO> upload(@Valid @RequestBody UploadUserVectorRequest request, HttpSession session) {
+        long userId = currentUserService.requireCurrentUserId(session);
+        UserVector entity = userVectorService.createFromContent(userId, request.getVectorName(), request.getContent());
+        return ResponseEntity.status(HttpStatus.CREATED).body(userVectorMapper.toDTO(entity));
     }
 
     @GetMapping("/{id}")
+    @RequireLogin
+    @CheckUserVectorOwner(paramIndex = 0)
     public ResponseEntity<UserVectorDTO> getById(@PathVariable Long id) {
         return userVectorService.getById(id)
                 .map(e -> ResponseEntity.ok(userVectorMapper.toDTO(e)))
@@ -69,6 +57,8 @@ public class UserVectorController {
     }
 
     @GetMapping("/user/{userId}")
+    @RequireLogin
+    @CheckUserId(paramIndex = 0)
     public ResponseEntity<List<UserVectorDTO>> listByUserId(@PathVariable Long userId) {
         List<UserVectorDTO> list = userVectorService.listByUserId(userId).stream()
                 .map(userVectorMapper::toDTO)
@@ -77,13 +67,10 @@ public class UserVectorController {
     }
 
     @DeleteMapping("/{id}")
+    @RequireLogin
+    @CheckUserVectorOwner(paramIndex = 0)
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        try {
-            userVectorService.delete(id);
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            log.error("Error deleting user vector", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        userVectorService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

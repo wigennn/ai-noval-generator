@@ -20,6 +20,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -51,16 +52,20 @@ public class ChapterWebSocketController {
     private final ConcurrentHashMap<String, AtomicBoolean> activeChapterStreams = new ConcurrentHashMap<>();
 
     @MessageMapping("/chapters/stream")
-    public void streamChapter(ChapterStreamRequest request) {
+    public void streamChapter(ChapterStreamRequest request, Principal principal) {
         if (request.getNovelId() == null || request.getChapterNumber() == null) {
             log.warn("Invalid chapter stream request: {}", request);
+            return;
+        }
+        Long currentUserId = principalToUserId(principal);
+        String destination = String.format("/topic/chapters/%d/%d", request.getNovelId(), request.getChapterNumber());
+        if (currentUserId == null) {
+            messagingTemplate.convertAndSend(destination, new ChapterStreamPayload("error", "未登录"));
             return;
         }
 
         Long novelId = request.getNovelId();
         Integer chapterNumber = request.getChapterNumber();
-
-        String destination = String.format("/topic/chapters/%d/%d", novelId, chapterNumber);
 
         // 创建停止标记
         String streamKey = String.format("%d:%d", novelId, chapterNumber);
@@ -70,6 +75,11 @@ public class ChapterWebSocketController {
         try {
             Novel novel = novelRepository.findById(novelId)
                     .orElseThrow(() -> new RuntimeException("Novel not found: " + novelId));
+            if (!currentUserId.equals(novel.getUserId())) {
+                activeChapterStreams.remove(streamKey);
+                messagingTemplate.convertAndSend(destination, new ChapterStreamPayload("error", "无权限操作该小说"));
+                return;
+            }
             UserModel model = userModelRepository.findByUserIdAndType(
                             novel.getUserId(), ModelTypeEnum.NORMAL.getType())
                     .orElseThrow(() -> new RuntimeException("User model not found: " + novel.getUserId()));
@@ -196,6 +206,15 @@ public class ChapterWebSocketController {
             log.info("Stopped chapter stream: {}", streamKey);
         } else {
             log.warn("Chapter stream not found: {}", streamKey);
+        }
+    }
+
+    private static Long principalToUserId(Principal principal) {
+        if (principal == null || principal.getName() == null) return null;
+        try {
+            return Long.parseLong(principal.getName());
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 

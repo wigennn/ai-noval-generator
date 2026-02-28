@@ -2,9 +2,14 @@ package com.viking.ai.novel.interfaces.controller;
 
 import com.viking.ai.novel.application.service.NovelVectorService;
 import com.viking.ai.novel.domain.model.NovelVector;
+import com.viking.ai.novel.interfaces.aop.CheckNovelVectorOwner;
+import com.viking.ai.novel.interfaces.aop.CheckNovelIdOwner;
+import com.viking.ai.novel.interfaces.aop.CheckRequestNovelId;
+import com.viking.ai.novel.interfaces.aop.RequireLogin;
 import com.viking.ai.novel.interfaces.dto.CreateNovelVectorRequest;
 import com.viking.ai.novel.interfaces.dto.NovelVectorDTO;
 import com.viking.ai.novel.interfaces.mapper.NovelVectorMapper;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,9 +20,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * 小说向量关联 API
- */
 @RestController
 @RequestMapping("/api/novel-vectors")
 @RequiredArgsConstructor
@@ -28,20 +30,16 @@ public class NovelVectorController {
     private final NovelVectorMapper novelVectorMapper = NovelVectorMapper.INSTANCE;
 
     @PostMapping
+    @RequireLogin
+    @CheckRequestNovelId(paramIndex = 0, field = "novelId")
     public ResponseEntity<NovelVectorDTO> create(@Valid @RequestBody CreateNovelVectorRequest request) {
-        try {
-            NovelVector entity = novelVectorService.create(
-                    request.getNovelId(),
-                    request.getVectorId()
-            );
-            return ResponseEntity.status(HttpStatus.CREATED).body(novelVectorMapper.toDTO(entity));
-        } catch (Exception e) {
-            log.error("Error creating novel vector", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        NovelVector entity = novelVectorService.create(request.getNovelId(), request.getVectorId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(novelVectorMapper.toDTO(entity));
     }
 
     @GetMapping("/{id}")
+    @RequireLogin
+    @CheckNovelVectorOwner(paramIndex = 0)
     public ResponseEntity<NovelVectorDTO> getById(@PathVariable Long id) {
         return novelVectorService.getById(id)
                 .map(e -> ResponseEntity.ok(novelVectorMapper.toDTO(e)))
@@ -49,6 +47,8 @@ public class NovelVectorController {
     }
 
     @GetMapping("/novel/{novelId}")
+    @RequireLogin
+    @CheckNovelIdOwner(paramIndex = 0)
     public ResponseEntity<List<NovelVectorDTO>> listByNovelId(@PathVariable Long novelId) {
         List<NovelVectorDTO> list = novelVectorService.listByNovelId(novelId).stream()
                 .map(novelVectorMapper::toDTO)
@@ -57,13 +57,10 @@ public class NovelVectorController {
     }
 
     @DeleteMapping("/{id}")
+    @RequireLogin
+    @CheckNovelVectorOwner(paramIndex = 0)
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        try {
-            novelVectorService.delete(id);
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            log.error("Error deleting novel vector", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        novelVectorService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,5 +1,6 @@
 package com.viking.ai.novel.interfaces.controller;
 
+import com.viking.ai.novel.application.service.CurrentUserService;
 import com.viking.ai.novel.application.service.EmailVerificationService;
 import com.viking.ai.novel.application.service.UserService;
 import com.viking.ai.novel.domain.model.User;
@@ -22,8 +23,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Slf4j
 public class AuthController {
-
-    private static final String SESSION_USER_ID = "userId";
 
     private final UserService userService;
     private final EmailVerificationService emailVerificationService;
@@ -53,7 +52,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         User user = userService.getOrCreateUserByEmail(request.getEmail());
-        session.setAttribute(SESSION_USER_ID, user.getId());
+        session.setAttribute(CurrentUserService.SESSION_USER_ID, user.getId());
         return ResponseEntity.ok(userMapper.toDTO(user));
     }
 
@@ -64,7 +63,7 @@ public class AuthController {
     public ResponseEntity<UserDTO> login(@Valid @RequestBody LoginRequest request, HttpSession session) {
         return userService.loginByEmail(request.getEmail(), request.getPassword())
                 .map(user -> {
-                    session.setAttribute(SESSION_USER_ID, user.getId());
+                    session.setAttribute(CurrentUserService.SESSION_USER_ID, user.getId());
                     return ResponseEntity.ok(userMapper.toDTO(user));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
@@ -82,7 +81,7 @@ public class AuthController {
                     request.getPhone(),
                     request.getEmail()
             );
-            session.setAttribute(SESSION_USER_ID, user.getId());
+            session.setAttribute(CurrentUserService.SESSION_USER_ID, user.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(userMapper.toDTO(user));
         } catch (RuntimeException e) {
             log.warn("Register failed: {}", e.getMessage());
@@ -96,7 +95,7 @@ public class AuthController {
      */
     @GetMapping("/me")
     public ResponseEntity<UserDTO> me(HttpSession session) {
-        Long userId = (Long) session.getAttribute(SESSION_USER_ID);
+        Long userId = (Long) session.getAttribute(CurrentUserService.SESSION_USER_ID);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }

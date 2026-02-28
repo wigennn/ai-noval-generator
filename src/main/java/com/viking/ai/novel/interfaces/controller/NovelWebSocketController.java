@@ -15,6 +15,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,9 +43,15 @@ public class NovelWebSocketController {
     private final ConcurrentHashMap<String, AtomicBoolean> activeStreams = new ConcurrentHashMap<>();
 
     @MessageMapping("/novels/stream")
-    public void streamNovel(NovelStreamRequest request) {
+    public void streamNovel(NovelStreamRequest request, Principal principal) {
         if (request.getNovelId() == null || request.getStreamType() == null) {
             log.warn("Invalid novel stream request: {}", request);
+            return;
+        }
+        Long currentUserId = principalToUserId(principal);
+        if (currentUserId == null) {
+            String destination = "/topic/novels/" + request.getNovelId() + "/" + (request.getStreamType() != null ? request.getStreamType() : "");
+            messagingTemplate.convertAndSend(destination, new ChapterStreamPayload("error", "未登录"));
             return;
         }
 
@@ -59,7 +66,6 @@ public class NovelWebSocketController {
 
         String destination = strategy.buildDestination(novelId);
 
-        // 创建停止标记
         String streamKey = String.format("%d:%s", novelId, streamType);
         AtomicBoolean stopped = new AtomicBoolean(false);
         activeStreams.put(streamKey, stopped);
@@ -67,6 +73,11 @@ public class NovelWebSocketController {
         try {
             Novel novel = novelRepository.findById(novelId)
                     .orElseThrow(() -> new RuntimeException("Novel not found: " + novelId));
+            if (!currentUserId.equals(novel.getUserId())) {
+                activeStreams.remove(streamKey);
+                messagingTemplate.convertAndSend(destination, new ChapterStreamPayload("error", "无权限操作该小说"));
+                return;
+            }
             UserModel model = userModelRepository.findByUserIdAndType(
                             novel.getUserId(), ModelTypeEnum.NORMAL.getType())
                     .orElseThrow(() -> new RuntimeException("User model not found: " + novel.getUserId()));
@@ -106,5 +117,14 @@ public class NovelWebSocketController {
                 .filter(s -> type.equals(s.getType()))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private static Long principalToUserId(Principal principal) {
+        if (principal == null || principal.getName() == null) return null;
+        try {
+            return Long.parseLong(principal.getName());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

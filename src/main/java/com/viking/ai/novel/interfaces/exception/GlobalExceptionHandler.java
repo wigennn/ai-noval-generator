@@ -1,5 +1,7 @@
 package com.viking.ai.novel.interfaces.exception;
 
+import com.viking.ai.novel.infrastructure.excep.ForbiddenException;
+import com.viking.ai.novel.infrastructure.excep.NotLoggedInException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +16,16 @@ import java.util.Map;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+    
+    @ExceptionHandler(NotLoggedInException.class)
+    public ResponseEntity<Void> handleNotLoggedIn(NotLoggedInException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<Void> handleForbidden(ForbiddenException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
     
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationExceptions(
