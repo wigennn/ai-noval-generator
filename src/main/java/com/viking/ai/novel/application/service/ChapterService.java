@@ -11,6 +11,7 @@ import com.viking.ai.novel.domain.repository.UserModelRepository;
 import com.viking.ai.novel.infrastructure.ai.QdrantService;
 import com.viking.ai.novel.infrastructure.constants.ModelTypeEnum;
 import com.viking.ai.novel.infrastructure.mq.AiGenerateProducer;
+import com.viking.ai.novel.infrastructure.utils.BasicUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -129,7 +130,8 @@ public class ChapterService {
             if (chapter.getVectorId() != null) {
                 qdrantService.deleteVector(chapter.getVectorId());
             }
-            String vectorId = qdrantService.storeChapter(chapter.getId().toString(), content, model);
+            String collectionName = BasicUtils.getCollectionName(novel.getUserId(), novel.getId());
+            String vectorId = qdrantService.storeChapter(chapter.getId().toString(), content, model, collectionName);
             chapter.setVectorId(vectorId);
         }
 

@@ -58,7 +58,7 @@ public class AiModelService {
                 .baseUrl(model.getModelUrl())
                 .apiKey(model.getApiKey())
                 .modelName(model.getModelName())
-                .dimensions(1024)
+                .dimensions(1536)
                 .build();
     }
     

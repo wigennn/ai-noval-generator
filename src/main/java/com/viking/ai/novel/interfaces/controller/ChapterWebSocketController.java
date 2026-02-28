@@ -9,6 +9,7 @@ import com.viking.ai.novel.domain.repository.UserModelRepository;
 import com.viking.ai.novel.infrastructure.ai.AiModelService;
 import com.viking.ai.novel.infrastructure.ai.QdrantService;
 import com.viking.ai.novel.infrastructure.constants.ModelTypeEnum;
+import com.viking.ai.novel.infrastructure.utils.BasicUtils;
 import com.viking.ai.novel.interfaces.dto.ChapterStreamPayload;
 import com.viking.ai.novel.interfaces.dto.ChapterStreamRequest;
 import com.viking.ai.novel.interfaces.dto.StopStreamRequest;
@@ -232,7 +233,8 @@ public class ChapterWebSocketController {
 
                 if (vectorModel != null) {
                     // 查询向量数据库，获取top3相关片段
-                    List<EmbeddingMatch<TextSegment>> matches = qdrantService.searchSimilar(queryText, 3, vectorModel);
+                    String collectionName = BasicUtils.getCollectionName(novel.getUserId(), novel.getId());
+                    List<EmbeddingMatch<TextSegment>> matches = qdrantService.searchSimilar(queryText, 3, vectorModel, collectionName);
                     for (EmbeddingMatch<TextSegment> match : matches) {
                         TextSegment segment = match.embedded();
                         if (segment != null && segment.text() != null) {
@@ -267,7 +269,7 @@ public class ChapterWebSocketController {
                 qdrantService.deleteVector(chapter.getVectorId());
             }
             String vectorId = qdrantService.storeChapter(
-                    chapter.getId().toString(), fullText, embeddingModel);
+                    chapter.getId().toString(), fullText, embeddingModel, BasicUtils.getCollectionName(novel.getUserId(), novel.getId()));
             chapter.setVectorId(vectorId);
         } catch (Exception e) {
             log.error("Error storing chapter to Qdrant", e);

@@ -6,6 +6,7 @@ import com.viking.ai.novel.domain.repository.UserModelRepository;
 import com.viking.ai.novel.domain.repository.UserVectorRepository;
 import com.viking.ai.novel.infrastructure.ai.QdrantService;
 import com.viking.ai.novel.infrastructure.constants.ModelTypeEnum;
+import com.viking.ai.novel.infrastructure.utils.BasicUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +42,7 @@ public class UserVectorService {
     public UserVector createFromContent(Long userId, String vectorName, String content) {
         UserModel model = userModelRepository.findByUserIdAndType(userId, ModelTypeEnum.VECTOR.getType())
                 .orElseThrow(() -> new RuntimeException("User model not found: " + userId));
-        String vectorId = qdrantService.storeText(content, model);
+        String vectorId = qdrantService.storeText(content, model, BasicUtils.getCollectionName(userId, null));
         return create(userId, vectorName, vectorId);
     }
 
