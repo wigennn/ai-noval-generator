@@ -1,13 +1,13 @@
 spring:
   application:
     name: ai-novel-generator
-  
+
   datasource:
     url: jdbc:mysql://localhost:3306/ai_novel?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
-  
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -47,7 +47,7 @@ rocketmq:
     group: ai-novel-producer
     send-message-timeout: 30000
 
-# Mail（可选，用于发送验证码；不配置时验证码仅打印到控制台便于开发）
+  # Mail（可选，用于发送验证码；不配置时验证码仅打印到控制台便于开发）
   spring:
     mail:
       host: smtp.163.com
